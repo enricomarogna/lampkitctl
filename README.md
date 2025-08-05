@@ -5,7 +5,7 @@ Uno strumento CLI in Python per installare e configurare automaticamente un ambi
 ## 🔁 Clonazione del progetto
 
 ```bash
-git clone https://github.com/enricomarogna/lampkitctl.git
+git clone git@github.com:enricomarogna/lampkitctl.git
 cd lampkitctl
 ```
 
