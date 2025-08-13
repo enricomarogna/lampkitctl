@@ -150,7 +150,19 @@ pip install -e .
 lampkitctl --help
 # or
 python -m lampkitctl --help
+
+# Run CLI under sudo while keeping the venv path
+sudo "$(command -v lampkitctl)" menu
+sudo "$(command -v lampkitctl)" install-lamp
+
+# Alternative module runner
+sudo "$(command -v python)" -m lampkitctl install-lamp
 ```
+
+Some systems configure ``sudo`` with ``secure_path`` which resets ``PATH`` and
+causes ``sudo lampkitctl`` to fail with ``command not found`` when the CLI lives
+inside a virtualenv. Using ``$(command -v lampkitctl)`` provides the absolute
+path to the current executable and works reliably.
 
 Legacy: `python main.py --help` also works.
 
@@ -161,18 +173,24 @@ Legacy: `python main.py --help` also works.
 Commands run preflight checks and provide guidance if the environment is
 missing pieces.
 
+### Launch the interactive menu
+
+```bash
+sudo "$(command -v lampkitctl)" menu
+```
+
 ### Install the LAMP stack
 
 ```bash
-sudo lampkitctl install-lamp
+sudo "$(command -v lampkitctl)" install-lamp
 # or simulate without changes:
-sudo lampkitctl install-lamp --dry-run
+sudo "$(command -v lampkitctl)" install-lamp --dry-run
 ```
 
 ### Create a site
 
 ```bash
-sudo lampkitctl create-site example.local \
+sudo "$(command -v lampkitctl)" create-site example.local \
   --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user \
@@ -186,25 +204,25 @@ sudo lampkitctl create-site example.local \
 ### Issue an SSL certificate (Certbot)
 
 ```bash
-sudo lampkitctl generate-ssl example.local
+sudo "$(command -v lampkitctl)" generate-ssl example.local
 ```
 
 ### Set WordPress permissions
 
 ```bash
-sudo lampkitctl wp-permissions /var/www/example.local
+sudo "$(command -v lampkitctl)" wp-permissions /var/www/example.local
 ```
 
 ### List configured sites
 
 ```bash
-sudo lampkitctl list-sites
+sudo "$(command -v lampkitctl)" list-sites
 ```
 
 ### Remove a site
 
 ```bash
-sudo lampkitctl uninstall-site example.local \
+sudo "$(command -v lampkitctl)" uninstall-site example.local \
   --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user
@@ -215,6 +233,7 @@ sudo lampkitctl uninstall-site example.local \
 ## CLI Reference
 
 > Exact command names/options may vary slightly by version. Run `lampkitctl --help` for the current details.
+> From a virtualenv, prefix privileged commands with `sudo "$(command -v lampkitctl)"`.
 
 ### Global options
 

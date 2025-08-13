@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import sys
 from typing import Iterable, List, Optional
 
 
@@ -177,3 +178,31 @@ def prompt_confirm(message: str, default: bool = False) -> bool:
         if resp in {"n", "no"}:
             return False
         print("Please respond with 'y' or 'n'.")
+
+
+def prompt_yes_no(message: str, default: bool = False) -> bool:
+    """Prompt the user for a yes/no response.
+
+    This is a thin wrapper around :func:`prompt_confirm` for semantic clarity.
+
+    Args:
+        message: Prompt to display.
+        default: Default value when the user presses enter.
+
+    Returns:
+        ``True`` if the user confirms, ``False`` otherwise.
+    """
+
+    return prompt_confirm(message, default=default)
+
+
+def echo_err(message: str) -> None:
+    """Print ``message`` to standard error."""
+
+    print(message, file=sys.stderr)
+
+
+def is_non_interactive() -> bool:
+    """Return ``True`` if stdin is not attached to a TTY."""
+
+    return not sys.stdin.isatty()
