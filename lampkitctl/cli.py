@@ -206,6 +206,20 @@ def generate_ssl(ctx: click.Context, domain: str) -> None:
     ], dry_run)
 
 
+@cli.command("menu")
+@click.pass_context
+def menu_cmd(ctx: click.Context) -> None:
+    """Launch the interactive text-based menu.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+    """
+    from . import menu as menu_module
+
+    dry_run = ctx.obj["dry_run"]
+    menu_module.run_menu(dry_run=dry_run)
+
+
 @cli.command("version")
 def version_cmd() -> None:
     """Show version information.
