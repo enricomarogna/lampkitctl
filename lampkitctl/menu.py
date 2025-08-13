@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Iterable, List, Optional
 
-from . import db_ops, system_ops, utils, wp_ops
+from . import db_ops, system_ops, utils, wp_ops, preflight
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +263,13 @@ def _wp_permissions_flow(dry_run: bool) -> None:
     doc_root = _text("Main > Set WordPress permissions > Path")
     if not doc_root:
         return
+    try:
+        preflight.ensure_or_fail(
+            preflight.checks_for("wp-permissions", doc_root=doc_root),
+            "wp-permissions",
+        )
+    except SystemExit:
+        return
     set_wp_permissions(doc_root, dry_run=dry_run)
 
 
@@ -273,6 +280,15 @@ def _generate_ssl_flow(dry_run: bool) -> None:
         return
     choices = [s["domain"] for s in sites]
     domain = _select("Main > Generate SSL certificate > Select domain", choices)
+    try:
+        preflight.ensure_or_fail(
+            preflight.checks_for("generate-ssl", domain=domain),
+            "generate-ssl",
+        )
+    except SystemExit:
+        if _confirm("Run install-lamp now?", default=False):
+            install_lamp(dry_run=dry_run)
+        return
     generate_ssl(domain, dry_run=dry_run)
 
 
@@ -304,16 +320,41 @@ def run_menu(dry_run: bool = False) -> None:
     while True:
         choice = _select("Main > Choose an option", options)
         if choice == "Install LAMP server":
+            try:
+                preflight.ensure_or_fail(
+                    preflight.checks_for("install-lamp"), "install-lamp"
+                )
+            except SystemExit:
+                continue
             install_lamp(dry_run=dry_run)
         elif choice == "Create a site":
+            try:
+                preflight.ensure_or_fail(
+                    preflight.checks_for("create-site"), "create-site"
+                )
+            except SystemExit:
+                if _confirm("Run install-lamp now?", default=False):
+                    install_lamp(dry_run=dry_run)
+                continue
             _create_site_flow(dry_run=dry_run)
         elif choice == "Uninstall site":
+            try:
+                preflight.ensure_or_fail(
+                    preflight.checks_for("uninstall-site"), "uninstall-site"
+                )
+            except SystemExit:
+                if _confirm("Run install-lamp now?", default=False):
+                    install_lamp(dry_run=dry_run)
+                continue
             _uninstall_site_flow(dry_run=dry_run)
         elif choice == "Set WordPress permissions":
             _wp_permissions_flow(dry_run=dry_run)
         elif choice == "Generate SSL certificate":
             _generate_ssl_flow(dry_run=dry_run)
         elif choice == "List installed sites":
-            _list_sites_flow()
+            if not preflight.has_cmd("apache2") or not preflight.apache_paths_present():
+                print("Apache not installed. No sites to list.")
+            else:
+                _list_sites_flow()
         elif choice == "Exit":
             break
