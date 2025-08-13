@@ -371,18 +371,19 @@ No. It’s only needed if you want to issue/manage SSL certificates via `ssl iss
 
 ## License
 
-MIT (or your preferred license). Include a `LICENSE` file in the repo root.
+MIT.
 
 ---
 
-## Support
+## Support Development
+If you find this project useful, consider [offering me a beer 🍺](https://www.paypal.com/paypalme/enricomarogna/5) — it helps a lot!
 
-If this project helps you and you’d like to buy me a coffee/beer:
-**PayPal.me** → [https://www.paypal.com/paypalme/enricomarogna/5](https://www.paypal.com/paypalme/enricomarogna/5)
+[![Donate via PayPal](https://img.shields.io/badge/PayPal-Buy%20me%20a%20beer-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/enricomarogna/5)
 
 ---
 
 ## Credits
 
 Author: **Enrico Marogna** – [https://enricomarogna.com](https://enricomarogna.com)
+
 Origin: Python port and extension of the Bash tool “lamp-mngr.sh”.
