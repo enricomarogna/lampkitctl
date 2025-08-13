@@ -3,12 +3,18 @@ from __future__ import annotations
 
 import getpass
 import logging
+import os
 import re
+import subprocess
 import sys
 from typing import Iterable, List, Optional
 
 from . import db_ops, preflight, system_ops, utils, wp_ops
-from .elevate import maybe_reexec_with_sudo
+from .elevate import (
+    build_sudo_cmd,
+    maybe_reexec_with_sudo,
+    resolve_self_executable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +22,25 @@ try:  # pragma: no cover - optional dependency
     from InquirerPy import inquirer
 except Exception:  # pragma: no cover - handled gracefully
     inquirer = None
+
+
+# ---------------------------------------------------------------------------
+# CLI runner
+# ---------------------------------------------------------------------------
+
+def _run_cli(args: list[str], *, dry_run: bool = False) -> int:
+    exe = resolve_self_executable()
+    if exe:
+        base = [exe]
+    else:
+        base = [sys.executable, "-m", "lampkitctl"]
+
+    if os.geteuid() != 0 and not dry_run:
+        cmd = build_sudo_cmd(base + args)
+        os.execvp(cmd[0], cmd)
+        return 0
+
+    return subprocess.call(base + args)
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +268,21 @@ def _create_site_flow(dry_run: bool) -> None:
         return
     db_password = _password("Main > Create a site > Database password")
     wordpress = _confirm("Main > Create a site > Install WordPress?", default=False)
-    create_site(domain, doc_root, db_name, db_user, db_password, wordpress, dry_run=dry_run)
+    args = [
+        "create-site",
+        domain,
+        "--doc-root",
+        doc_root,
+        "--db-name",
+        db_name,
+        "--db-user",
+        db_user,
+        "--db-password",
+        db_password,
+    ]
+    if wordpress:
+        args.append("--wordpress")
+    _run_cli(args, dry_run=dry_run)
 
 
 def _uninstall_site_flow(dry_run: bool) -> None:
@@ -260,8 +299,17 @@ def _uninstall_site_flow(dry_run: bool) -> None:
         return
     if not _confirm("This action is destructive. Continue?", default=False):
         return
-    remove_db = _confirm("Drop database and user?", default=False)
-    uninstall_site(domain, doc_root, db_name, db_user, remove_db, dry_run=dry_run)
+    args = [
+        "uninstall-site",
+        domain,
+        "--doc-root",
+        doc_root,
+        "--db-name",
+        db_name,
+        "--db-user",
+        db_user,
+    ]
+    _run_cli(args, dry_run=dry_run)
 
 
 def _wp_permissions_flow(dry_run: bool) -> None:
@@ -274,7 +322,7 @@ def _wp_permissions_flow(dry_run: bool) -> None:
         )
     except SystemExit:
         return
-    set_wp_permissions(doc_root, dry_run=dry_run)
+    _run_cli(["wp-permissions", doc_root], dry_run=dry_run)
 
 
 def _generate_ssl_flow(dry_run: bool) -> None:
@@ -290,9 +338,9 @@ def _generate_ssl_flow(dry_run: bool) -> None:
         )
     except SystemExit:
         if _confirm("Run install-lamp now?", default=False):
-            install_lamp(dry_run=dry_run)
+            _run_cli(["install-lamp"], dry_run=dry_run)
         return
-    generate_ssl(domain, dry_run=dry_run)
+    _run_cli(["generate-ssl", domain], dry_run=dry_run)
 
 
 def _list_sites_flow() -> None:
@@ -327,8 +375,12 @@ def run_menu(dry_run: bool = False) -> None:
                 "Main > Install LAMP server > Database engine",
                 ["Auto", "MySQL", "MariaDB"],
             )
-            install_lamp(
-                db_engine=engine_choice.lower() if engine_choice != "Auto" else "auto",
+            _run_cli(
+                [
+                    "install-lamp",
+                    "--db-engine",
+                    engine_choice.lower() if engine_choice != "Auto" else "auto",
+                ],
                 dry_run=dry_run,
             )
         elif choice == "Create a site":
@@ -338,7 +390,7 @@ def run_menu(dry_run: bool = False) -> None:
                 )
             except SystemExit:
                 if _confirm("Run install-lamp now?", default=False):
-                    install_lamp(dry_run=dry_run)
+                    _run_cli(["install-lamp"], dry_run=dry_run)
                 continue
             _create_site_flow(dry_run=dry_run)
         elif choice == "Uninstall site":
@@ -348,7 +400,7 @@ def run_menu(dry_run: bool = False) -> None:
                 )
             except SystemExit:
                 if _confirm("Run install-lamp now?", default=False):
-                    install_lamp(dry_run=dry_run)
+                    _run_cli(["install-lamp"], dry_run=dry_run)
                 continue
             _uninstall_site_flow(dry_run=dry_run)
         elif choice == "Set WordPress permissions":

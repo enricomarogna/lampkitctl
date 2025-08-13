@@ -26,20 +26,18 @@ def resolve_self_executable() -> str:
     return ""
 
 
-def build_sudo_cmd(argv: list[str]) -> list[str]:
-    """Return a command that re-executes ``lampkitctl`` under ``sudo``.
+def build_sudo_cmd(full_argv: list[str]) -> list[str]:
+    """Prefix ``full_argv`` with ``sudo``.
 
     Args:
-        argv: Original argument vector.
+        full_argv: Complete argument vector including executable and all
+            subcommands/flags.
 
     Returns:
         List of command parts suitable for :func:`os.execvp`.
     """
 
-    exe = resolve_self_executable()
-    if exe:
-        return ["sudo", exe] + argv[1:]
-    return ["sudo", sys.executable, "-m", "lampkitctl"] + argv[1:]
+    return ["sudo", *full_argv]
 
 
 def maybe_reexec_with_sudo(
@@ -74,7 +72,12 @@ def maybe_reexec_with_sudo(
     if not proceed:
         raise SystemExit(2)
 
-    cmd = build_sudo_cmd(argv)
+    exe = resolve_self_executable()
+    if exe:
+        full = [exe] + argv[1:]
+    else:
+        full = [sys.executable, "-m", "lampkitctl"] + argv[1:]
+    cmd = build_sudo_cmd(full)
     print("Re-running as root:", " ".join(shlex.quote(a) for a in cmd))
     os.execvp(cmd[0], cmd)
 

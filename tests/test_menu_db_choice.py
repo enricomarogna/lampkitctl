@@ -1,16 +1,24 @@
-from lampkitctl import menu, packages
+from lampkitctl import menu
 
 
 def test_menu_db_choice(monkeypatch):
     sequence = iter(["Install LAMP server", "MariaDB", "Exit"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
-    calls = []
+    monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/venv/lampkitctl")
 
-    def fake_install(pref, dry_run=False):
-        calls.append(pref)
-        return packages.Engine("mariadb", "mariadb-server", "mariadb-client", "mariadb")
+    called = {}
 
-    monkeypatch.setattr(menu.system_ops, "install_lamp_stack", fake_install)
+    def fake_call(args):
+        called["args"] = args
+        return 0
+
+    monkeypatch.setattr(menu.subprocess, "call", fake_call)
+
     menu.run_menu(dry_run=True)
-    assert calls == ["mariadb"]
+    assert called["args"] == [
+        "/venv/lampkitctl",
+        "install-lamp",
+        "--db-engine",
+        "mariadb",
+    ]

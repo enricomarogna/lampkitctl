@@ -10,18 +10,28 @@ from lampkitctl import menu
 
 
 def test_run_menu_routing(monkeypatch):
-    """Ensure menu routes to correct action."""
+    """Ensure menu builds the correct CLI invocation."""
     sequence = iter(["Install LAMP server", "Auto", "Exit"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
 
-    called = {}
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
-    monkeypatch.setattr(
-        menu, "install_lamp", lambda db_engine="auto", dry_run=False: called.setdefault("called", (db_engine, dry_run))
-    )
+    monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/venv/lampkitctl")
+
+    called = {}
+
+    def fake_call(args):
+        called["args"] = args
+        return 0
+
+    monkeypatch.setattr(menu.subprocess, "call", fake_call)
 
     menu.run_menu(dry_run=True)
-    assert called["called"] == ("auto", True)
+    assert called["args"] == [
+        "/venv/lampkitctl",
+        "install-lamp",
+        "--db-engine",
+        "auto",
+    ]
 
 
 def test_validate_domain_invalid():

@@ -8,27 +8,25 @@ import pytest
 from lampkitctl import elevate, utils
 
 
-def test_build_sudo_cmd_uses_executable(monkeypatch) -> None:
-    """build_sudo_cmd should prefer the console script path."""
+def test_build_sudo_cmd_prefixes(monkeypatch) -> None:
+    """build_sudo_cmd should prefix the provided argv with sudo."""
 
-    monkeypatch.setattr(elevate, "resolve_self_executable", lambda: "/venv/bin/lampkitctl")
     cmd = elevate.build_sudo_cmd(["/venv/bin/lampkitctl", "install-lamp", "--x"])
     assert cmd == ["sudo", "/venv/bin/lampkitctl", "install-lamp", "--x"]
 
 
-def test_build_sudo_cmd_fallback(monkeypatch) -> None:
-    """Fallback to module runner when executable is not found."""
+def test_build_sudo_cmd_plain(monkeypatch) -> None:
+    """build_sudo_cmd leaves the argv untouched apart from sudo."""
 
-    monkeypatch.setattr(elevate, "resolve_self_executable", lambda: "")
     cmd = elevate.build_sudo_cmd(["lampkitctl", "install-lamp"])
-    assert cmd[:4] == ["sudo", sys.executable, "-m", "lampkitctl"]
+    assert cmd == ["sudo", "lampkitctl", "install-lamp"]
 
 
 def test_maybe_reexec_execs(monkeypatch) -> None:
     """When not root and interactive, the process should exec sudo."""
 
     monkeypatch.setattr(elevate.os, "geteuid", lambda: 1000)
-    monkeypatch.setattr(elevate, "build_sudo_cmd", lambda argv: ["sudo", "/venv/bin/lampkitctl"] + argv[1:])
+    monkeypatch.setattr(elevate, "resolve_self_executable", lambda: "/venv/bin/lampkitctl")
     monkeypatch.setattr(utils, "prompt_yes_no", lambda *a, **k: True)
     monkeypatch.setattr(utils, "is_non_interactive", lambda: False)
     called = {}
