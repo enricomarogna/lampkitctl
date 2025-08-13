@@ -148,21 +148,28 @@ pip install -e ".[tui]"
 ```bash
 pip install -e .
 lampkitctl --help
-# or
-python -m lampkitctl --help
-
-# Run CLI under sudo while keeping the venv path
-sudo "$(command -v lampkitctl)" menu
-sudo "$(command -v lampkitctl)" install-lamp
-
-# Alternative module runner
-sudo "$(command -v python)" -m lampkitctl install-lamp
 ```
 
-Some systems configure ``sudo`` with ``secure_path`` which resets ``PATH`` and
-causes ``sudo lampkitctl`` to fail with ``command not found`` when the CLI lives
-inside a virtualenv. Using ``$(command -v lampkitctl)`` provides the absolute
-path to the current executable and works reliably.
+### Global launcher for sudo
+If `sudo lampkitctl` is not found, install a global launcher that forwards to your current virtualenv:
+
+```bash
+# Run once (will prompt for sudo if needed)
+lampkitctl install-launcher
+
+# Now these work:
+sudo lampkitctl menu
+sudo lampkitctl install-lamp
+```
+
+If you move or delete the virtualenv, recreate the launcher:
+
+```bash
+lampkitctl uninstall-launcher
+lampkitctl install-launcher
+```
+
+Alternatively, run without sudo and the tool will auto-elevate when required.
 
 Legacy: `python main.py --help` also works.
 
@@ -176,21 +183,22 @@ missing pieces.
 ### Launch the interactive menu
 
 ```bash
-sudo "$(command -v lampkitctl)" menu
+lampkitctl install-launcher  # run once to enable sudo lampkitctl
+sudo lampkitctl menu
 ```
 
 ### Install the LAMP stack
 
 ```bash
-sudo "$(command -v lampkitctl)" install-lamp
+sudo lampkitctl install-lamp
 # or simulate without changes:
-sudo "$(command -v lampkitctl)" install-lamp --dry-run
+sudo lampkitctl install-lamp --dry-run
 ```
 
 ### Create a site
 
 ```bash
-sudo "$(command -v lampkitctl)" create-site example.local \
+sudo lampkitctl create-site example.local \
   --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user \
@@ -204,25 +212,25 @@ sudo "$(command -v lampkitctl)" create-site example.local \
 ### Issue an SSL certificate (Certbot)
 
 ```bash
-sudo "$(command -v lampkitctl)" generate-ssl example.local
+sudo lampkitctl generate-ssl example.local
 ```
 
 ### Set WordPress permissions
 
 ```bash
-sudo "$(command -v lampkitctl)" wp-permissions /var/www/example.local
+sudo lampkitctl wp-permissions /var/www/example.local
 ```
 
 ### List configured sites
 
 ```bash
-sudo "$(command -v lampkitctl)" list-sites
+sudo lampkitctl list-sites
 ```
 
 ### Remove a site
 
 ```bash
-sudo "$(command -v lampkitctl)" uninstall-site example.local \
+sudo lampkitctl uninstall-site example.local \
   --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user
@@ -233,7 +241,8 @@ sudo "$(command -v lampkitctl)" uninstall-site example.local \
 ## CLI Reference
 
 > Exact command names/options may vary slightly by version. Run `lampkitctl --help` for the current details.
-> From a virtualenv, prefix privileged commands with `sudo "$(command -v lampkitctl)"`.
+> Install the launcher via `lampkitctl install-launcher` to run commands with `sudo lampkitctl`.
+> Without it, prefix commands with `sudo "$(command -v lampkitctl)"`.
 
 ### Global options
 
@@ -355,6 +364,15 @@ jobs:
 
 **Do I need sudo?**
 Yes—most operations (package install, `/etc` writes, services) require elevated privileges.
+
+**`sudo lampkitctl` returns "command not found"**
+Some systems configure `sudo` with a *secure* `PATH` that omits your virtualenv. Install the global launcher so `sudo` can find the CLI:
+
+```bash
+lampkitctl install-launcher
+```
+
+Alternatively, run commands without sudo and the tool will auto-elevate, or invoke via `sudo "$(command -v lampkitctl)" …`.
 
 **Can I test safely?**
 Yes: use `--dry-run` or test in a dedicated VM/container. Quick Docker sandbox:
