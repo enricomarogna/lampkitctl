@@ -1,23 +1,24 @@
 from click.testing import CliRunner
-from lampkitctl import cli
+from lampkitctl import cli, packages
 
 
 def test_cli_install_lamp(monkeypatch) -> None:
-    """Validate installation command sequence for LAMP services.
+    """Ensure CLI passes DB engine to installer."""
 
-    Args:
-        monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
-    """
     calls = []
     monkeypatch.setattr(cli.preflight, "ensure_or_fail", lambda *a, **k: None)
-    monkeypatch.setattr(cli.system_ops, "check_service", lambda s: False)
-    monkeypatch.setattr(
-        cli.system_ops, "install_service", lambda s, dry_run: calls.append(s)
-    )
+
+    def fake_install(pref, dry_run=False):
+        calls.append(pref)
+        return packages.Engine("mariadb", "mariadb-server", "mariadb-client", "mariadb")
+
+    monkeypatch.setattr(cli.system_ops, "install_lamp_stack", fake_install)
     runner = CliRunner()
-    result = runner.invoke(cli.cli, ["--dry-run", "install-lamp"])
+    result = runner.invoke(
+        cli.cli, ["--dry-run", "install-lamp", "--db-engine", "mariadb"]
+    )
     assert result.exit_code == 0
-    assert calls == ["apache2", "mysql", "php"]
+    assert calls == ["mariadb"]
 
 
 def test_cli_create_site(monkeypatch) -> None:

@@ -1,4 +1,5 @@
 import os
+import os
 import subprocess
 from pathlib import Path
 
@@ -60,6 +61,15 @@ def test_can_write(monkeypatch):
     assert preflight.can_write("/tmp").ok
     monkeypatch.setattr(os, "access", lambda p, m: False)
     assert not preflight.can_write("/tmp").ok
+
+
+def test_apt_lock_suspected(monkeypatch):
+    class P:
+        stdout = "apt"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: P())
+    res = preflight.apt_lock_suspected()
+    assert not res.ok and res.severity is preflight.Severity.WARNING
 
 
 def test_is_wordpress_dir(tmp_path):

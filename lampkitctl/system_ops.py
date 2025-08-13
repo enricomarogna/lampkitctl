@@ -7,9 +7,43 @@ import shutil
 from pathlib import Path
 from typing import List
 
+from .packages import (
+    APACHE_PKG,
+    CERTBOT_PKGS,
+    PHP_BASE,
+    PHP_EXTRAS,
+    detect_db_engine,
+)
 from .utils import run_command
 
 logger = logging.getLogger(__name__)
+
+
+def install_lamp_stack(
+    preferred_engine: str | None,
+    with_php: bool = True,
+    with_certbot: bool = True,
+    dry_run: bool = False,
+):
+    """Install Apache, a database engine and optional PHP/Certbot packages."""
+
+    eng = detect_db_engine(preferred_engine)
+    pkgs = [APACHE_PKG, eng.server_pkg]
+    if with_php:
+        pkgs += PHP_BASE + PHP_EXTRAS
+    if with_certbot:
+        pkgs += CERTBOT_PKGS
+    logger.info(
+        "install_lamp_stack",
+        extra={"packages": pkgs, "db_engine": eng.name, "dry_run": dry_run},
+    )
+    run_command(["apt-get", "update"], dry_run=dry_run, capture_output=True)
+    run_command(
+        ["apt-get", "install", "-y", *pkgs],
+        dry_run=dry_run,
+        capture_output=True,
+    )
+    return eng
 
 
 def check_service(service: str) -> bool:

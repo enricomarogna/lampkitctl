@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from lampkitctl import cli, preflight
+from lampkitctl import cli, packages, preflight
 
 
 def test_install_lamp_preflight_fail(monkeypatch):
@@ -37,7 +37,11 @@ def test_install_lamp_preflight_pass(monkeypatch):
     monkeypatch.setattr(
         preflight, "is_supported_os", lambda: preflight.CheckResult(True, "")
     )
-    monkeypatch.setattr(cli.system_ops, "check_service", lambda s: True)
+    monkeypatch.setattr(
+        cli.system_ops,
+        "install_lamp_stack",
+        lambda pref, dry_run=False: packages.Engine("mysql", "mysql-server", "mysql-client", "mysql"),
+    )
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["--non-interactive", "install-lamp"])
     assert result.exit_code == 0

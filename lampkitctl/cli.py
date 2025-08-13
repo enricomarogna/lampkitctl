@@ -67,21 +67,15 @@ def guard(command: str):
 
 
 @cli.command("install-lamp")
+@click.option(
+    "--db-engine",
+    type=click.Choice(["auto", "mysql", "mariadb"]),
+    default="auto",
+)
 @click.pass_context
-def install_lamp(ctx: click.Context) -> None:
-    """Verify and install LAMP services.
+def install_lamp(ctx: click.Context, db_engine: str) -> None:
+    """Verify and install LAMP services."""
 
-    Args:
-        ctx (click.Context): Click context carrying shared state.
-
-    Returns:
-        None: This function does not return a value.
-
-    Example:
-        >>> from click.testing import CliRunner
-        >>> runner = CliRunner()
-        >>> runner.invoke(cli, ["--dry-run", "install-lamp"])
-    """
     non_interactive = ctx.obj.get("non_interactive", False)
     dry_run = ctx.obj["dry_run"]
     maybe_reexec_with_sudo(sys.argv, non_interactive=non_interactive, dry_run=dry_run)
@@ -89,14 +83,11 @@ def install_lamp(ctx: click.Context) -> None:
     preflight.ensure_or_fail(
         checks, interactive=not non_interactive, dry_run=dry_run
     )
-
-    services = ["apache2", "mysql", "php"]
-    for srv in services:
-        if system_ops.check_service(srv):
-            click.echo(f"{srv} already installed")
-        else:
-            click.echo(f"Installing {srv}...")
-            system_ops.install_service(srv, dry_run=dry_run)
+    eng = system_ops.install_lamp_stack(
+        None if db_engine == "auto" else db_engine,
+        dry_run=dry_run,
+    )
+    click.echo(f"Database engine: {eng.name} ({eng.server_pkg})")
 
 
 @cli.command("create-site")
