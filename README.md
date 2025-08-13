@@ -187,6 +187,9 @@ lampkitctl install-launcher  # run once to enable sudo lampkitctl
 sudo lampkitctl menu
 ```
 
+When elevation is required, the tool continues the chosen action after
+acquiring sudo; you do not need to re-select options.
+
 ### Install the LAMP stack
 
 ```bash

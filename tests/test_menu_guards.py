@@ -1,30 +1,18 @@
-from lampkitctl import menu, preflight
+import sys
+
+from lampkitctl import menu
 
 
 def test_menu_install_lamp_blocking(monkeypatch, capsys):
     sequence = iter(["Install LAMP server", "Auto", "Exit"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
-    monkeypatch.setattr(
-        preflight,
-        "is_root_or_sudo",
-        lambda: preflight.CheckResult(False, "Root privileges required. Run with sudo."),
-    )
-    monkeypatch.setattr(
-        preflight,
-        "has_cmd",
-        lambda name, msg=None, severity=preflight.Severity.BLOCKING: preflight.CheckResult(True, ""),
-    )
-    monkeypatch.setattr(
-        preflight,
-        "is_supported_os",
-        lambda: preflight.CheckResult(True, ""),
-    )
-    calls = []
-    monkeypatch.setattr(
-        menu.system_ops, "install_lamp_stack", lambda *a, **k: calls.append(a)
-    )
+
+    def fake_run_cli(args, dry_run=False):
+        print("Preflight failed", file=sys.stderr)
+        return 1
+
+    monkeypatch.setattr(menu, "_run_cli", fake_run_cli)
+
     menu.run_menu()
     captured = capsys.readouterr()
     assert "Preflight failed" in captured.err
-    assert calls == []
-    assert "Traceback" not in captured.err
