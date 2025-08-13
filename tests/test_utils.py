@@ -11,7 +11,7 @@ def test_run_command_dry_run(monkeypatch) -> None:
     """
     called = False
 
-    def fake_run(cmd, check, text):
+    def fake_run(cmd, **kwargs):
         nonlocal called
         called = True
         return subprocess.CompletedProcess(cmd, 0, "", "")
@@ -29,7 +29,7 @@ def test_run_command_executes(monkeypatch) -> None:
     """
     recorded = {}
 
-    def fake_run(cmd, check, text):
+    def fake_run(cmd, **kwargs):
         recorded["cmd"] = cmd
         return subprocess.CompletedProcess(cmd, 0, "out", "err")
 

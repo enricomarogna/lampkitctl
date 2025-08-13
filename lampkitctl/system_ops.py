@@ -48,8 +48,8 @@ def install_service(service: str, dry_run: bool = False) -> None:
         >>> install_service("apache2", dry_run=True)
     """
     cmd = ["apt-get", "install", "-y", service]
-    run_command(["apt-get", "update"], dry_run)
-    run_command(cmd, dry_run)
+    run_command(["apt-get", "update"], dry_run, capture_output=True)
+    run_command(cmd, dry_run, capture_output=True)
 
 
 def create_web_directory(path: str, dry_run: bool = False) -> None:

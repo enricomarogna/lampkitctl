@@ -89,8 +89,14 @@ def test_cli_list_sites(monkeypatch) -> None:
     Args:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
-    monkeypatch.setattr(cli.preflight, "has_cmd", lambda name: True)
-    monkeypatch.setattr(cli.preflight, "apache_paths_present", lambda: True)
+    monkeypatch.setattr(
+        cli.preflight,
+        "has_cmd",
+        lambda name, msg=None, severity=cli.preflight.Severity.BLOCKING: cli.preflight.CheckResult(True, ""),
+    )
+    monkeypatch.setattr(
+        cli.preflight, "apache_paths_present", lambda: cli.preflight.CheckResult(True, "")
+    )
     monkeypatch.setattr(
         cli.system_ops, "list_sites", lambda: [{"domain": "a", "doc_root": "/var/www/a"}]
     )

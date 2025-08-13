@@ -90,6 +90,8 @@ def run_command(
     dry_run: bool = False,
     check: bool = True,
     log_cmd: Optional[Iterable[str]] = None,
+    capture_output: bool = False,
+    text: bool = True,
     **kwargs,
 ) -> subprocess.CompletedProcess:
     """Execute a system command with logging and optional dry run.
@@ -116,7 +118,37 @@ def run_command(
     logger.info("run_command", extra={"cmd": list(log_cmd or cmd), "dry_run": dry_run})
     if dry_run:
         return subprocess.CompletedProcess(cmd, 0, "", "")
-    return subprocess.run(cmd, check=check, text=True, **kwargs)
+    try:
+        return subprocess.run(
+            cmd,
+            check=check,
+            capture_output=capture_output,
+            text=text,
+            **kwargs,
+        )
+    except subprocess.CalledProcessError as exc:
+        msg = classify_apt_error(exc)
+        print(msg)
+        raise SystemExit(2)
+
+
+def classify_apt_error(e: subprocess.CalledProcessError) -> str:
+    """Return a friendly diagnostic for ``apt`` failures."""
+
+    out = "".join([e.stdout or "", "\n", e.stderr or ""]).strip()
+    if "Permission denied" in out or e.returncode in (100,):
+        return (
+            "APT failed (permission/lock).\n"
+            "- Ensure you run as root: sudo ...\n"
+            "- Close other package managers (apt/dpkg).\n"
+            "- Retry: sudo apt-get update && sudo apt-get install ..."
+        )
+    if "Could not get lock" in out or "Unable to lock" in out:
+        return (
+            "APT lock is held by another process. Close Software Updater/apt and retry.\n"
+            "Tip: check 'ps aux | grep apt'"
+        )
+    return f"Command failed: {e.cmd} (exit {e.returncode})\n{out}".strip()
 
 
 def prompt_confirm(message: str, default: bool = False) -> bool:

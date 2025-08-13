@@ -67,6 +67,12 @@ def install_lamp(dry_run: bool = False) -> None:
     Args:
         dry_run: When ``True`` log actions without executing.
     """
+    checks = preflight.checks_for("install-lamp")
+    try:
+        preflight.ensure_or_fail(checks, dry_run=dry_run)
+    except SystemExit:
+        return
+
     services = ["apache2", "mysql", "php"]
     for srv in services:
         if system_ops.check_service(srv):
@@ -265,8 +271,7 @@ def _wp_permissions_flow(dry_run: bool) -> None:
         return
     try:
         preflight.ensure_or_fail(
-            preflight.checks_for("wp-permissions", doc_root=doc_root),
-            "wp-permissions",
+            preflight.checks_for("wp-permissions", doc_root=doc_root)
         )
     except SystemExit:
         return
@@ -282,8 +287,7 @@ def _generate_ssl_flow(dry_run: bool) -> None:
     domain = _select("Main > Generate SSL certificate > Select domain", choices)
     try:
         preflight.ensure_or_fail(
-            preflight.checks_for("generate-ssl", domain=domain),
-            "generate-ssl",
+            preflight.checks_for("generate-ssl", domain=domain)
         )
     except SystemExit:
         if _confirm("Run install-lamp now?", default=False):
@@ -320,17 +324,11 @@ def run_menu(dry_run: bool = False) -> None:
     while True:
         choice = _select("Main > Choose an option", options)
         if choice == "Install LAMP server":
-            try:
-                preflight.ensure_or_fail(
-                    preflight.checks_for("install-lamp"), "install-lamp"
-                )
-            except SystemExit:
-                continue
             install_lamp(dry_run=dry_run)
         elif choice == "Create a site":
             try:
                 preflight.ensure_or_fail(
-                    preflight.checks_for("create-site"), "create-site"
+                    preflight.checks_for("create-site")
                 )
             except SystemExit:
                 if _confirm("Run install-lamp now?", default=False):
@@ -340,7 +338,7 @@ def run_menu(dry_run: bool = False) -> None:
         elif choice == "Uninstall site":
             try:
                 preflight.ensure_or_fail(
-                    preflight.checks_for("uninstall-site"), "uninstall-site"
+                    preflight.checks_for("uninstall-site")
                 )
             except SystemExit:
                 if _confirm("Run install-lamp now?", default=False):
@@ -352,7 +350,7 @@ def run_menu(dry_run: bool = False) -> None:
         elif choice == "Generate SSL certificate":
             _generate_ssl_flow(dry_run=dry_run)
         elif choice == "List installed sites":
-            if not preflight.has_cmd("apache2") or not preflight.apache_paths_present():
+            if not preflight.has_cmd("apache2").ok or not preflight.apache_paths_present().ok:
                 print("Apache not installed. No sites to list.")
             else:
                 _list_sites_flow()
