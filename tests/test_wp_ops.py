@@ -2,7 +2,12 @@ import logging
 from lampkitctl import wp_ops
 
 
-def test_set_permissions(monkeypatch):
+def test_set_permissions(monkeypatch) -> None:
+    """Ensure file permissions are set via three commands.
+
+    Args:
+        monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
+    """
     calls = []
 
     def fake_run(cmd, dry_run):
@@ -13,7 +18,12 @@ def test_set_permissions(monkeypatch):
     assert len(calls) == 3
 
 
-def test_install_wordpress_dry_run(caplog):
+def test_install_wordpress_dry_run(caplog) -> None:
+    """Check that WordPress installation logs configuration in dry run.
+
+    Args:
+        caplog (pytest.LogCaptureFixture): Fixture to capture log records.
+    """
     caplog.set_level(logging.INFO)
     wp_ops.install_wordpress(
         "/tmp", "db", "user", "pw", dry_run=True
@@ -21,7 +31,12 @@ def test_install_wordpress_dry_run(caplog):
     assert "configure_wp" in caplog.text
 
 
-def test_download_wordpress(monkeypatch):
+def test_download_wordpress(monkeypatch) -> None:
+    """Verify the download command is executed.
+
+    Args:
+        monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
+    """
     calls = []
 
     def fake_run(cmd, dry_run):
