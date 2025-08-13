@@ -9,6 +9,7 @@ def test_cli_install_lamp(monkeypatch) -> None:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
     calls = []
+    monkeypatch.setattr(cli.preflight, "ensure_or_fail", lambda *a, **k: None)
     monkeypatch.setattr(cli.system_ops, "check_service", lambda s: False)
     monkeypatch.setattr(
         cli.system_ops, "install_service", lambda s, dry_run: calls.append(s)
@@ -25,6 +26,7 @@ def test_cli_create_site(monkeypatch) -> None:
     Args:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
+    monkeypatch.setattr(cli.preflight, "ensure_or_fail", lambda *a, **k: None)
     monkeypatch.setattr(
         cli.system_ops, "create_web_directory", lambda *a, **k: None
     )
@@ -58,6 +60,7 @@ def test_cli_uninstall_site(monkeypatch) -> None:
     Args:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
+    monkeypatch.setattr(cli.preflight, "ensure_or_fail", lambda *a, **k: None)
     monkeypatch.setattr(cli.utils, "prompt_confirm", lambda *a, **k: True)
     monkeypatch.setattr(
         cli.system_ops, "remove_virtualhost", lambda *a, **k: None
@@ -86,6 +89,8 @@ def test_cli_list_sites(monkeypatch) -> None:
     Args:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
+    monkeypatch.setattr(cli.preflight, "has_cmd", lambda name: True)
+    monkeypatch.setattr(cli.preflight, "apache_paths_present", lambda: True)
     monkeypatch.setattr(
         cli.system_ops, "list_sites", lambda: [{"domain": "a", "doc_root": "/var/www/a"}]
     )

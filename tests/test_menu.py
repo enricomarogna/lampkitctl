@@ -15,6 +15,7 @@ def test_run_menu_routing(monkeypatch):
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
 
     called = {}
+    monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
     monkeypatch.setattr(menu, "install_lamp", lambda dry_run: called.setdefault("called", dry_run))
 
     menu.run_menu(dry_run=True)

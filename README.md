@@ -11,6 +11,7 @@ It targets both advanced users—through granular commands—and less experience
 
 * [Features](#features)
 * [Requirements](#requirements)
+* [Preflight checks](#preflight-checks)
 * [Security & Warnings](#security--warnings)
 * [Installation](#installation)
 * [Quick Start](#quick-start)
@@ -72,6 +73,32 @@ It targets both advanced users—through granular commands—and less experience
 
 ---
 
+## Preflight checks
+
+Most commands validate that required services and files are present before
+running. If something is missing, **lampkitctl** fails fast with an explicit
+message and suggested fix. Example:
+
+```
+$ lampkitctl --non-interactive create-site example.com --doc-root /var/www/example --db-name db --db-user user --db-password pw
+Preflight failed: create-site
+- Apache not installed. Run: install-lamp.
+- MySQL not installed. Run: install-lamp.
+```
+
+For SSL generation:
+
+```
+$ lampkitctl --non-interactive generate-ssl example.com
+Preflight failed: generate-ssl
+- certbot not installed. Run: apt install certbot python3-certbot-apache.
+```
+
+Use these diagnostics to install missing packages or create required files
+before retrying.
+
+---
+
 ## Security & Warnings
 
 * Some operations are **destructive** (e.g., site/DB removal). The tool asks for confirmation and supports `--dry-run`.
@@ -126,6 +153,9 @@ Legacy: `python main.py --help` also works.
 ---
 
 ## Quick Start
+
+Commands run preflight checks and provide guidance if the environment is
+missing pieces.
 
 ### Install the LAMP stack
 
@@ -186,6 +216,7 @@ sudo lampkitctl uninstall-site example.local \
 
 * `--dry-run` — simulate operations without applying changes.
 * `--verbose` — increase logging verbosity.
+* `--non-interactive` — fail immediately on missing prerequisites.
 
 ### Main commands
 

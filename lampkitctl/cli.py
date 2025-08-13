@@ -1,17 +1,22 @@
 """Command line interface for lampkitctl."""
 from __future__ import annotations
 
+import functools
+
 import click
 
 from . import __version__
-from . import db_ops, system_ops, utils, wp_ops
+from . import db_ops, system_ops, utils, wp_ops, preflight
 
 
 @click.group()
 @click.option("--dry-run", is_flag=True, help="Show actions without executing")
 @click.option("--verbose", is_flag=True, help="Enable verbose logging")
+@click.option(
+    "--non-interactive", is_flag=True, help="Fail fast instead of prompting"
+)
 @click.pass_context
-def cli(ctx: click.Context, dry_run: bool, verbose: bool) -> None:
+def cli(ctx: click.Context, dry_run: bool, verbose: bool, non_interactive: bool) -> None:
     """LAMP environment management tool.
 
     Args:
@@ -34,10 +39,28 @@ def cli(ctx: click.Context, dry_run: bool, verbose: bool) -> None:
         logging.getLogger().setLevel(logging.DEBUG)
     ctx.ensure_object(dict)
     ctx.obj["dry_run"] = dry_run
+    ctx.obj["non_interactive"] = non_interactive
+
+
+def guard(command: str):
+    """Decorator to enforce preflight checks for ``command``."""
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(ctx: click.Context, *args, **kwargs):
+            interactive = not ctx.obj.get("non_interactive", False)
+            checks = preflight.checks_for(command, **kwargs)
+            preflight.ensure_or_fail(checks, command, interactive=interactive)
+            return func(ctx, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 @cli.command("install-lamp")
 @click.pass_context
+@guard("install-lamp")
 def install_lamp(ctx: click.Context) -> None:
     """Verify and install LAMP services.
 
@@ -70,6 +93,7 @@ def install_lamp(ctx: click.Context) -> None:
 @click.option("--db-password", prompt=True, hide_input=True, confirmation_prompt=True)
 @click.option("--wordpress", is_flag=True, help="Install WordPress")
 @click.pass_context
+@guard("create-site")
 def create_site(
     ctx: click.Context,
     domain: str,
@@ -115,6 +139,7 @@ def create_site(
 @click.option("--db-name", required=True)
 @click.option("--db-user", required=True)
 @click.pass_context
+@guard("uninstall-site")
 def uninstall_site(
     ctx: click.Context, domain: str, doc_root: str, db_name: str, db_user: str
 ) -> None:
@@ -155,6 +180,9 @@ def list_sites() -> None:
         >>> runner = CliRunner()
         >>> runner.invoke(cli, ["list-sites"])
     """
+    if not preflight.has_cmd("apache2") or not preflight.apache_paths_present():
+        click.echo("Apache not installed. No sites to list.")
+        return
     for site in system_ops.list_sites():
         click.echo(f"{site['domain']} -> {site['doc_root']}")
 
@@ -162,6 +190,7 @@ def list_sites() -> None:
 @cli.command("wp-permissions")
 @click.argument("doc_root")
 @click.pass_context
+@guard("wp-permissions")
 def wp_permissions(ctx: click.Context, doc_root: str) -> None:
     """Set secure WordPress permissions.
 
@@ -183,6 +212,7 @@ def wp_permissions(ctx: click.Context, doc_root: str) -> None:
 @cli.command("generate-ssl")
 @click.argument("domain")
 @click.pass_context
+@guard("generate-ssl")
 def generate_ssl(ctx: click.Context, domain: str) -> None:
     """Generate an SSL certificate using certbot.
 
