@@ -40,7 +40,7 @@ lampkitctl
 
 > La CLI globale sarà disponibile dopo aver configurato `setup.py` con l’entry point.
 
-Il presente progetto è un rifacciamento in python, e poi arricchito di nuove funzionalità, del seguente script in bash:
+Il presente progetto è un rifaccimento in python, e poi arricchito di nuove funzionalità, del seguente script in bash:
 
 ```bash
 #!/bin/bash
