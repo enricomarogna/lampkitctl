@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lampkitctl"
+version = "0.1.0"
+description = "Python CLI to install and configure a LAMP stack on Ubuntu"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{ name = "Enrico Marogna", email = "info@enricomarogna.com" }]
+dependencies = [
+  "click>=8.1.7"
+]
+
+[project.optional-dependencies]
+tui = ["InquirerPy>=0.3", "rich>=13.0"]
+dev = ["pytest>=8", "pytest-cov>=5"]
+
+[project.scripts]
+lampkitctl = "lampkitctl.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["lampkitctl*"]
