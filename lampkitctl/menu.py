@@ -4,9 +4,11 @@ from __future__ import annotations
 import getpass
 import logging
 import re
+import sys
 from typing import Iterable, List, Optional
 
-from . import db_ops, system_ops, utils, wp_ops, preflight
+from . import db_ops, preflight, system_ops, utils, wp_ops
+from .elevate import maybe_reexec_with_sudo
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,7 @@ def install_lamp(dry_run: bool = False) -> None:
     Args:
         dry_run: When ``True`` log actions without executing.
     """
+    maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     checks = preflight.checks_for("install-lamp")
     try:
         preflight.ensure_or_fail(checks, dry_run=dry_run)
@@ -102,6 +105,7 @@ def create_site(
         wordpress: If ``True`` install WordPress.
         dry_run: Log actions without executing.
     """
+    maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     logger.info(
         "create_site",
         extra={
@@ -140,6 +144,7 @@ def uninstall_site(
         remove_db: If ``True`` drop database and user.
         dry_run: Log actions without executing.
     """
+    maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     logger.info("uninstall_site", extra={"domain": domain, "dry_run": dry_run})
     system_ops.remove_virtualhost(domain, dry_run=dry_run)
     system_ops.remove_host_entry(domain, dry_run=dry_run)
@@ -155,6 +160,7 @@ def set_wp_permissions(doc_root: str, dry_run: bool = False) -> None:
         doc_root: Path to the WordPress installation.
         dry_run: Log actions without executing.
     """
+    maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     logger.info("set_wp_permissions", extra={"doc_root": doc_root, "dry_run": dry_run})
     wp_ops.set_permissions(doc_root, dry_run=dry_run)
 
@@ -166,6 +172,7 @@ def generate_ssl(domain: str, dry_run: bool = False) -> None:
         domain: Domain for the certificate.
         dry_run: Log actions without executing.
     """
+    maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     logger.info("generate_ssl", extra={"domain": domain, "dry_run": dry_run})
     utils.run_command(["certbot", "--apache", "-d", domain], dry_run)
 

@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import functools
+import sys
 
 import click
 
 from . import __version__
-from . import db_ops, system_ops, utils, wp_ops, preflight
+from . import db_ops, preflight, system_ops, utils, wp_ops
+from .elevate import maybe_reexec_with_sudo
 
 
 @click.group()
@@ -48,11 +50,14 @@ def guard(command: str):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(ctx: click.Context, *args, **kwargs):
-            interactive = not ctx.obj.get("non_interactive", False)
+            non_interactive = ctx.obj.get("non_interactive", False)
             dry_run = ctx.obj.get("dry_run", False)
+            maybe_reexec_with_sudo(
+                sys.argv, non_interactive=non_interactive, dry_run=dry_run
+            )
             checks = preflight.checks_for(command, **kwargs)
             preflight.ensure_or_fail(
-                checks, interactive=interactive, dry_run=dry_run
+                checks, interactive=not non_interactive, dry_run=dry_run
             )
             return func(ctx, *args, **kwargs)
 
@@ -77,10 +82,13 @@ def install_lamp(ctx: click.Context) -> None:
         >>> runner = CliRunner()
         >>> runner.invoke(cli, ["--dry-run", "install-lamp"])
     """
-    checks = preflight.checks_for("install-lamp")
-    interactive = not ctx.obj.get("non_interactive", False)
+    non_interactive = ctx.obj.get("non_interactive", False)
     dry_run = ctx.obj["dry_run"]
-    preflight.ensure_or_fail(checks, interactive=interactive, dry_run=dry_run)
+    maybe_reexec_with_sudo(sys.argv, non_interactive=non_interactive, dry_run=dry_run)
+    checks = preflight.checks_for("install-lamp")
+    preflight.ensure_or_fail(
+        checks, interactive=not non_interactive, dry_run=dry_run
+    )
 
     services = ["apache2", "mysql", "php"]
     for srv in services:
