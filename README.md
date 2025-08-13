@@ -40,6 +40,22 @@ lampkitctl
 
 > La CLI globale sarà disponibile dopo aver configurato `setup.py` con l’entry point.
 
+### Interactive menu
+
+È disponibile un menu testuale interattivo che replica la UX della versione Bash. Per avviarlo:
+
+```bash
+lampkitctl menu
+```
+
+Il menu accetta le stesse opzioni globali, ad esempio:
+
+```bash
+lampkitctl menu --dry-run
+```
+
+Per un'esperienza migliorata è consigliata l'installazione opzionale della libreria [InquirerPy](https://github.com/kazhala/InquirerPy). In assenza della libreria, il menu utilizza un semplice fallback basato su input standard.
+
 Il presente progetto è un rifaccimento in python, e poi arricchito di nuove funzionalità, del seguente script in bash:
 
 ```bash
