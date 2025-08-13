@@ -5,49 +5,108 @@ import os
 import re
 import shutil
 import subprocess
+from dataclasses import dataclass
+from enum import Enum, auto
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional
+from typing import Iterable, List
 
 import click
 
 from . import utils
 
+
+class Severity(Enum):
+    """Severity levels for preflight checks."""
+
+    WARNING = auto()
+    BLOCKING = auto()
+
+
+@dataclass
+class CheckResult:
+    """Result of a single preflight check."""
+
+    ok: bool
+    message: str
+    severity: Severity = Severity.BLOCKING
+
+
 # ---------------------------------------------------------------------------
-# Basic check helpers
+# Check helpers
 # ---------------------------------------------------------------------------
 
-def is_root_or_sudo() -> bool:
-    """Return ``True`` when running as root or via sudo."""
-    return os.geteuid() == 0 or "SUDO_UID" in os.environ
+def is_root_or_sudo() -> CheckResult:
+    """Ensure the current user has root privileges."""
+
+    ok = os.geteuid() == 0 or "SUDO_UID" in os.environ
+    return CheckResult(ok, "Root privileges required. Run with sudo.")
 
 
-def is_supported_os() -> bool:
-    """Check whether the host is a supported Ubuntu release."""
+def is_supported_os() -> CheckResult:
+    """Verify the host is a supported Ubuntu release."""
+
     try:
         content = Path("/etc/os-release").read_text(encoding="utf-8")
     except OSError:
-        return False
+        content = ""
     id_match = re.search(r"^ID=(.*)$", content, re.MULTILINE)
     ver_match = re.search(r"^VERSION_ID=\"?(.*?)\"?$", content, re.MULTILINE)
-    if not id_match or not ver_match:
-        return False
-    distro = id_match.group(1)
-    version = ver_match.group(1)
-    return distro == "ubuntu" and version in {"20.04", "22.04", "24.04"}
+    ok = bool(
+        id_match
+        and ver_match
+        and id_match.group(1) == "ubuntu"
+        and ver_match.group(1) in {"20.04", "22.04", "24.04"}
+    )
+    return CheckResult(
+        ok, "Unsupported OS. Supported: Ubuntu 20.04/22.04/24.04."
+    )
 
 
-def has_cmd(name: str) -> bool:
-    """Return ``True`` if ``name`` is available on ``PATH``."""
-    return shutil.which(name) is not None
+def has_cmd(
+    name: str, msg: str | None = None, severity: Severity = Severity.BLOCKING
+) -> CheckResult:
+    """Return a :class:`CheckResult` verifying ``name`` exists on ``PATH``."""
+
+    ok = shutil.which(name) is not None
+    return CheckResult(ok, msg or f"{name} not found. Install {name}.", severity)
 
 
-def service_installed(name: str) -> bool:
-    """Alias for :func:`has_cmd` for semantic clarity."""
-    return has_cmd(name)
+def apache_paths_present() -> CheckResult:
+    """Check for Apache configuration directories."""
+
+    ok = Path("/etc/apache2").exists() and Path("/etc/apache2/sites-available").exists()
+    return CheckResult(ok, "Apache paths missing. Run: install-lamp.")
+
+
+def can_write(path: str) -> CheckResult:
+    """Ensure the current user can write to ``path``."""
+
+    ok = os.access(path, os.W_OK)
+    return CheckResult(ok, f"Cannot write {path}. Check permissions.")
+
+
+def path_exists(path: str | Path) -> CheckResult:
+    """Return ``CheckResult`` indicating whether ``path`` exists."""
+
+    p = Path(path)
+    return CheckResult(p.exists(), f"{path} does not exist.")
+
+
+def is_wordpress_dir(path: str | Path) -> CheckResult:
+    """Check whether ``path`` looks like a WordPress installation."""
+
+    p = Path(path)
+    ok = (
+        (p / "wp-config.php").exists()
+        and (p / "wp-content").exists()
+        and (p / "wp-includes").exists()
+    )
+    return CheckResult(ok, f"{path} is not a WordPress directory.")
 
 
 def service_running(name: str) -> bool:
     """Return ``True`` if ``systemctl`` reports ``name`` active."""
+
     try:
         result = subprocess.run(
             ["systemctl", "is-active", name],
@@ -59,119 +118,113 @@ def service_running(name: str) -> bool:
     return result.returncode == 0
 
 
-def apache_paths_present() -> bool:
-    """Check that Apache configuration directories exist."""
-    return Path("/etc/apache2").exists() and Path("/etc/apache2/sites-available").exists()
-
-
-def can_write(path: str) -> bool:
-    """Return ``True`` if the current user can write to ``path``."""
-    return os.access(path, os.W_OK)
-
-
-def is_wordpress_dir(path: str | Path) -> bool:
-    """Determine whether ``path`` appears to be a WordPress installation."""
-    p = Path(path)
-    return (
-        (p / "wp-config.php").exists()
-        and (p / "wp-content").exists()
-        and (p / "wp-includes").exists()
-    )
-
 # ---------------------------------------------------------------------------
 # Aggregation helpers
 # ---------------------------------------------------------------------------
 
-Check = Callable[[], Optional[str]]
+def summarize(results: List[CheckResult]) -> str:
+    """Return a human readable summary for failing ``results``."""
 
-
-def collect_errors(checks: Iterable[Check]) -> List[str]:
-    """Execute ``checks`` and return a list of error messages."""
-    errors: List[str] = []
-    for check in checks:
-        msg = check()
-        if msg:
-            errors.append(msg)
-    return errors
+    lines = ["Preflight failed:"]
+    for r in results:
+        lines.append(f"- {r.message}")
+    return "\n".join(lines)
 
 
 def ensure_or_fail(
-    checks: Iterable[Check],
-    command: str,
+    results: Iterable[CheckResult],
     *,
-    exit_code: int = 2,
+    allow_warnings_continue: bool = True,
     interactive: bool = True,
+    dry_run: bool = False,
 ) -> None:
-    """Validate ``checks`` and abort if any fail."""
-    errors = collect_errors(checks)
-    if not errors:
-        return
-    click.echo(f"Preflight failed: {command}")
-    for err in errors:
-        click.echo(f"- {err}")
-    if interactive and utils.prompt_confirm("Continue anyway?", default=False):
-        return
-    raise SystemExit(exit_code)
+    """Evaluate ``results`` and abort on failure.
+
+    ``SystemExit(2)`` is raised on BLOCKING failures unless ``dry_run`` is ``True``.
+    WARNING failures may prompt for confirmation when ``interactive``.
+    """
+
+    blocking = [r for r in results if (not r.ok and r.severity is Severity.BLOCKING)]
+    warnings = [r for r in results if (not r.ok and r.severity is Severity.WARNING)]
+
+    if blocking:
+        click.echo(summarize(blocking), err=True)
+        if not dry_run:
+            raise SystemExit(2)
+    if warnings:
+        click.echo(summarize(warnings), err=True)
+        if not allow_warnings_continue or not interactive:
+            raise SystemExit(2)
+        proceed = utils.prompt_confirm(
+            "Some prerequisites are missing. Continue anyway?", default=False
+        )
+        if not proceed:
+            raise SystemExit(2)
+
 
 # ---------------------------------------------------------------------------
 # Check factories
 # ---------------------------------------------------------------------------
 
-
-def checks_for(command: str, **kwargs) -> List[Check]:
+def checks_for(command: str, **kwargs) -> List[CheckResult]:
     """Return the appropriate preflight checks for ``command``."""
+
     domain = kwargs.get("domain", "")
     doc_root = kwargs.get("doc_root", "")
 
     if command == "install-lamp":
         return [
-            lambda: None
-            if is_root_or_sudo()
-            else "Root privileges required. Run with sudo.",
-            lambda: None if has_cmd("apt") else "apt not found. Install apt package manager.",
-            lambda: None if has_cmd("systemctl") else "systemctl not found. Install systemd.",
-            lambda: None
-            if is_supported_os()
-            else "Unsupported OS. Supported: Ubuntu 20.04/22.04/24.04.",
+            is_root_or_sudo(),
+            has_cmd("apt", "apt not found. Install apt package manager."),
+            has_cmd("systemctl", "systemctl not found. Install systemd."),
+            is_supported_os(),
         ]
     if command == "create-site":
         return [
-            lambda: None if has_cmd("apache2") else "Apache not installed. Run: install-lamp.",
-            lambda: None if apache_paths_present() else "Apache paths missing. Run: install-lamp.",
-            lambda: None if has_cmd("mysql") else "MySQL not installed. Run: install-lamp.",
-            lambda: None if has_cmd("php") else "PHP not installed. Run: install-lamp.",
-            lambda: None if can_write("/etc/hosts") else "Cannot write /etc/hosts. Run as root.",
-            lambda: None if can_write("/var/www") else "Cannot write /var/www. Check permissions.",
+            has_cmd("apache2", "Apache not installed. Run: install-lamp."),
+            apache_paths_present(),
+            has_cmd("mysql", "MySQL not installed. Run: install-lamp."),
+            has_cmd("php", "PHP not installed. Run: install-lamp."),
+            can_write("/etc/hosts"),
+            can_write("/var/www"),
         ]
     if command == "uninstall-site":
         return [
-            lambda: None if has_cmd("apache2") else "Apache not installed. Run: install-lamp.",
-            lambda: None if apache_paths_present() else "Apache paths missing. Run: install-lamp.",
-            lambda: None if has_cmd("mysql") else "MySQL not installed. Run: install-lamp.",
-            lambda: None if can_write("/etc/hosts") else "Cannot write /etc/hosts. Run as root.",
-            lambda: None if can_write("/var/www") else "Cannot write /var/www. Check permissions.",
+            has_cmd("apache2", "Apache not installed. Run: install-lamp."),
+            apache_paths_present(),
+            has_cmd("mysql", "MySQL not installed. Run: install-lamp."),
+            can_write("/etc/hosts"),
+            can_write("/var/www"),
         ]
     if command == "wp-permissions":
         return [
-            lambda: None if has_cmd("apache2") else "Apache not installed. Run: install-lamp.",
-            lambda: None if apache_paths_present() else "Apache paths missing. Run: install-lamp.",
-            lambda: None if Path(doc_root).exists() else f"{doc_root} does not exist.",
-            lambda: None
-            if is_wordpress_dir(doc_root)
-            else f"{doc_root} is not a WordPress directory.",
+            has_cmd("apache2", "Apache not installed. Run: install-lamp."),
+            apache_paths_present(),
+            path_exists(doc_root),
+            is_wordpress_dir(doc_root),
         ]
     if command == "generate-ssl":
-        vhost_available = Path(f"/etc/apache2/sites-available/{domain}.conf").exists()
-        vhost_enabled = Path(f"/etc/apache2/sites-enabled/{domain}.conf").exists()
+        vhost_available = Path(
+            f"/etc/apache2/sites-available/{domain}.conf"
+        ).exists()
+        vhost_enabled = Path(
+            f"/etc/apache2/sites-enabled/{domain}.conf"
+        ).exists()
         return [
-            lambda: None if has_cmd("apache2") else "Apache not installed. Run: install-lamp.",
-            lambda: None if apache_paths_present() else "Apache paths missing. Run: install-lamp.",
-            lambda: None if vhost_available else f"Virtual host {domain} missing. Create the site first.",
-            lambda: None
-            if vhost_enabled
-            else f"Virtual host {domain} not enabled. Run: a2ensite {domain} && systemctl reload apache2.",
-            lambda: None
-            if has_cmd("certbot")
-            else "certbot not installed. Run: apt install certbot python3-certbot-apache.",
+            has_cmd("apache2", "Apache not installed. Run: install-lamp."),
+            apache_paths_present(),
+            CheckResult(
+                vhost_available,
+                f"Virtual host {domain} missing. Create the site first.",
+            ),
+            CheckResult(
+                vhost_enabled,
+                f"Virtual host {domain} not enabled. Run: a2ensite {domain} && systemctl reload apache2.",
+            ),
+            has_cmd(
+                "certbot",
+                "certbot not installed. Run: apt install certbot python3-certbot-apache.",
+            ),
         ]
     return []
+

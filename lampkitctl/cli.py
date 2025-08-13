@@ -49,8 +49,11 @@ def guard(command: str):
         @functools.wraps(func)
         def wrapper(ctx: click.Context, *args, **kwargs):
             interactive = not ctx.obj.get("non_interactive", False)
+            dry_run = ctx.obj.get("dry_run", False)
             checks = preflight.checks_for(command, **kwargs)
-            preflight.ensure_or_fail(checks, command, interactive=interactive)
+            preflight.ensure_or_fail(
+                checks, interactive=interactive, dry_run=dry_run
+            )
             return func(ctx, *args, **kwargs)
 
         return wrapper
@@ -60,7 +63,6 @@ def guard(command: str):
 
 @cli.command("install-lamp")
 @click.pass_context
-@guard("install-lamp")
 def install_lamp(ctx: click.Context) -> None:
     """Verify and install LAMP services.
 
@@ -75,8 +77,12 @@ def install_lamp(ctx: click.Context) -> None:
         >>> runner = CliRunner()
         >>> runner.invoke(cli, ["--dry-run", "install-lamp"])
     """
-    services = ["apache2", "mysql", "php"]
+    checks = preflight.checks_for("install-lamp")
+    interactive = not ctx.obj.get("non_interactive", False)
     dry_run = ctx.obj["dry_run"]
+    preflight.ensure_or_fail(checks, interactive=interactive, dry_run=dry_run)
+
+    services = ["apache2", "mysql", "php"]
     for srv in services:
         if system_ops.check_service(srv):
             click.echo(f"{srv} already installed")
@@ -180,7 +186,7 @@ def list_sites() -> None:
         >>> runner = CliRunner()
         >>> runner.invoke(cli, ["list-sites"])
     """
-    if not preflight.has_cmd("apache2") or not preflight.apache_paths_present():
+    if not preflight.has_cmd("apache2").ok or not preflight.apache_paths_present().ok:
         click.echo("Apache not installed. No sites to list.")
         return
     for site in system_ops.list_sites():

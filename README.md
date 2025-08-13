@@ -94,8 +94,12 @@ Preflight failed: generate-ssl
 - certbot not installed. Run: apt install certbot python3-certbot-apache.
 ```
 
-Use these diagnostics to install missing packages or create required files
-before retrying.
+Critical prerequisites are **blocking** and abort the command with exit code `2`
+without an override prompt (e.g., running `install-lamp` without `sudo`). Use
+`--dry-run` to preview actions even when blocking checks fail.
+
+Use these diagnostics to install missing packages or create required files before
+retrying.
 
 ---
 

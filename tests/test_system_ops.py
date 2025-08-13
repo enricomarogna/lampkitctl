@@ -46,7 +46,9 @@ def test_install_service(monkeypatch) -> None:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
     calls = []
-    monkeypatch.setattr(system_ops, "run_command", lambda cmd, dry_run: calls.append(cmd))
+    monkeypatch.setattr(
+        system_ops, "run_command", lambda cmd, dry_run, **k: calls.append(cmd)
+    )
     system_ops.install_service("apache2", dry_run=True)
     assert calls[1] == ["apt-get", "install", "-y", "apache2"]
 
@@ -71,7 +73,9 @@ def test_enable_site(monkeypatch) -> None:
         monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
     """
     calls = []
-    monkeypatch.setattr(system_ops, "run_command", lambda cmd, dry_run: calls.append(cmd))
+    monkeypatch.setattr(
+        system_ops, "run_command", lambda cmd, dry_run, **k: calls.append(cmd)
+    )
     system_ops.enable_site("example.com", dry_run=True)
     assert calls[0][0] == "a2ensite"
 
@@ -84,6 +88,8 @@ def test_create_web_directory(monkeypatch, tmp_path) -> None:
         tmp_path (pathlib.Path): Temporary directory provided by pytest.
     """
     calls = []
-    monkeypatch.setattr(system_ops, "run_command", lambda cmd, dry_run: calls.append(cmd))
+    monkeypatch.setattr(
+        system_ops, "run_command", lambda cmd, dry_run, **k: calls.append(cmd)
+    )
     system_ops.create_web_directory(str(tmp_path / "web"), dry_run=True)
     assert calls[0][0] == "mkdir"
