@@ -104,36 +104,24 @@ source .venv/bin/activate
 python -m pip install -U pip
 ```
 
-### 3) Install dependencies / package
-
-If `pyproject.toml` or `setup.py` is present:
+### 3) Install the package
 
 ```bash
 pip install -e .
-```
-
-Alternatively (development mode):
-
-```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # if present
+# or with optional TUI extras:
+pip install -e ".[tui]"
 ```
 
 ### 4) Run
 
-**From source:**
-
 ```bash
-python3 -m lampkitctl --help
-# or
-python3 main.py --help
-```
-
-**After installing as a package:**
-
-```bash
+pip install -e .
 lampkitctl --help
+# or
+python -m lampkitctl --help
 ```
+
+Legacy: `python main.py --help` also works.
 
 ---
 
@@ -150,13 +138,12 @@ sudo lampkitctl install-lamp --dry-run
 ### Create a site
 
 ```bash
-sudo lampkitctl site add \
-  --domain example.local \
-  --docroot /var/www/example.local \
+sudo lampkitctl create-site example.local \
+  --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user \
-  --db-pass 'mypassword' \
-  --with-wordpress
+  --db-password 'mypassword' \
+  --wordpress
 ```
 
 > If you omit options, the CLI may prompt for required values.
@@ -165,26 +152,28 @@ sudo lampkitctl site add \
 ### Issue an SSL certificate (Certbot)
 
 ```bash
-sudo lampkitctl ssl issue --domain example.local
+sudo lampkitctl generate-ssl example.local
 ```
 
 ### Set WordPress permissions
 
 ```bash
-sudo lampkitctl wp perms --domain example.local
+sudo lampkitctl wp-permissions /var/www/example.local
 ```
 
 ### List configured sites
 
 ```bash
-sudo lampkitctl sites list
+sudo lampkitctl list-sites
 ```
 
 ### Remove a site
 
 ```bash
-sudo lampkitctl site remove --domain example.local
-# includes double confirmation; optional DB removal
+sudo lampkitctl uninstall-site example.local \
+  --doc-root /var/www/example.local \
+  --db-name example_db \
+  --db-user example_user
 ```
 
 ---
@@ -193,52 +182,32 @@ sudo lampkitctl site remove --domain example.local
 
 > Exact command names/options may vary slightly by version. Run `lampkitctl --help` for the current details.
 
-### Global options (typical)
+### Global options
 
 * `--dry-run` — simulate operations without applying changes.
 * `--verbose` — increase logging verbosity.
-* `--non-interactive` — avoid interactive prompts (useful in scripts/CI).
 
-### Main commands (typical)
-
-```bash
-install-lamp
-# Detect and install Apache, MySQL/MariaDB, PHP and core modules.
-```
+### Main commands
 
 ```bash
-site add
-# Create vhost, document root, /etc/hosts entry, DB + user; optional WordPress.
+install-lamp        # Detect and install Apache, MySQL/MariaDB, PHP and core modules.
+create-site         # Create vhost, document root, /etc/hosts entry, DB + user; optional WordPress.
+uninstall-site      # Remove vhost, hosts entry, doc root, and drop DB/user.
+list-sites          # List sites detected from vhost configuration files.
+wp-permissions      # Apply recommended WordPress permissions (owner/group, files/dirs).
+generate-ssl        # Issue a certificate with Certbot for a configured domain.
+menu                # Launch the interactive menu (if extras installed).
 ```
 
-**Common options:**
+**Common options for `create-site`:**
 
 * `--domain <domain>`
-* `--docroot </var/www/domain>`
+* `--doc-root </var/www/domain>`
 * `--db-name <name>`
 * `--db-user <user>`
-* `--db-pass <password>`
-* `--with-wordpress`
+* `--db-password <password>`
+* `--wordpress`
 
-```bash
-site remove
-# Uninstall a site; optional DB removal. Double confirmation.
-```
-
-```bash
-wp perms
-# Apply recommended WordPress permissions (owner/group, files/dirs).
-```
-
-```bash
-ssl issue
-# Issue a certificate with Certbot for a configured domain.
-```
-
-```bash
-sites list
-# List sites detected from vhost configuration files.
-```
 
 ---
 
@@ -281,7 +250,7 @@ tests/
 
 ```bash
 lampkitctl install-lamp --verbose
-lampkitctl site add --domain example.local --db-pass '****'
+lampkitctl create-site example.local --doc-root /var/www/example.local --db-name db --db-user user --db-password '****'
 ```
 
 ---
@@ -342,7 +311,7 @@ docker run -it --rm --name lampkitctl-test ubuntu:22.04 bash
 apt update && apt install -y python3 python3-pip git sudo
 git clone https://github.com/enricomarogna/lampkitctl.git
 cd lampkitctl
-pip install .
+pip install -e .
 lampkitctl --help
 ```
 
