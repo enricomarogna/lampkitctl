@@ -1,37 +1,147 @@
-"""
-utils.py
+"""Utility functions for lampkitctl."""
+from __future__ import annotations
 
-Funzioni di supporto per lampkitctl: gestione pacchetti e installazioni.
-"""
-
-import shutil
+import json
+import logging
 import subprocess
+from typing import Iterable, List, Optional
 
 
-def check_package(package):
+class JsonFormatter(logging.Formatter):
+    """Format log records as JSON strings.
+
+    This formatter converts :class:`logging.LogRecord` instances into JSON
+    objects, including extra attributes attached to the record.
     """
-    Verifica se un pacchetto è disponibile nel sistema.
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Return the log record as a JSON string.
+
+        Args:
+            record (logging.LogRecord): Record to format.
+
+        Returns:
+            str: JSON representation of the log record.
+
+        Example:
+            >>> logger = logging.getLogger(__name__)
+            >>> logger.addHandler(logging.StreamHandler())
+            >>> logger.handlers[0].setFormatter(JsonFormatter())
+            >>> logger.info("hello")
+            {"level": "INFO", ...}
+        """
+        data = {
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "time": self.formatTime(record, self.datefmt),
+        }
+        for key, value in getattr(record, "__dict__", {}).items():
+            if key not in {
+                "levelname",
+                "msg",
+                "args",
+                "name",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+            }:
+                data[key] = value
+        return json.dumps(data)
+
+
+def setup_logging(level: int = logging.INFO) -> None:
+    """Configure the root logger with a JSON formatter.
 
     Args:
-        package (str): Il nome del pacchetto/binary da cercare (es. 'apache2').
+        level (int, optional): Logging level for the root logger. Defaults to
+            :data:`logging.INFO`.
 
     Returns:
-        bool: True se il pacchetto è installato, False altrimenti.
+        None: This function does not return a value.
+
+    Example:
+        >>> setup_logging()
+        >>> logging.getLogger(__name__).info("hi")
+        {"level": "INFO", ...}
     """
-    return shutil.which(package) is not None
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+    logging.basicConfig(level=level, handlers=[handler], force=True)
 
 
-def install_package(package):
-    """
-    Installa un pacchetto nel sistema utilizzando apt-get.
+logger = logging.getLogger(__name__)
+
+
+def run_command(
+    cmd: List[str],
+    dry_run: bool = False,
+    check: bool = True,
+    log_cmd: Optional[Iterable[str]] = None,
+    **kwargs,
+) -> subprocess.CompletedProcess:
+    """Execute a system command with logging and optional dry run.
 
     Args:
-        package (str): Il nome del pacchetto da installare (es. 'php').
+        cmd (List[str]): Command and arguments to execute.
+        dry_run (bool, optional): If ``True`` the command is logged but not
+            executed. Defaults to ``False``.
+        check (bool, optional): If ``True`` raise
+            :class:`subprocess.CalledProcessError` on non-zero exit. Defaults
+            to ``True``.
+        log_cmd (Optional[Iterable[str]], optional): Alternate command to log
+            instead of ``cmd``. Defaults to ``None``.
+        **kwargs: Additional arguments passed to :func:`subprocess.run`.
+
+    Returns:
+        subprocess.CompletedProcess: Result of the executed command or a dummy
+            instance when ``dry_run`` is ``True``.
+
+    Example:
+        >>> run_command(["echo", "hi"], dry_run=True)
+        CompletedProcess(args=['echo', 'hi'], returncode=0)
     """
-    print(f"\n[*] Installazione di {package}...")
-    try:
-        subprocess.run(["sudo", "apt-get", "update"], check=True)
-        subprocess.run(["sudo", "apt-get", "install", "-y", package], check=True)
-        print(f"[+] {package} installato con successo.")
-    except subprocess.CalledProcessError:
-        print(f"[!] Errore durante l'installazione di {package}.")
+    logger.info("run_command", extra={"cmd": list(log_cmd or cmd), "dry_run": dry_run})
+    if dry_run:
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    return subprocess.run(cmd, check=check, text=True, **kwargs)
+
+
+def prompt_confirm(message: str, default: bool = False) -> bool:
+    """Prompt the user for a yes/no confirmation.
+
+    Args:
+        message (str): Message to display to the user.
+        default (bool, optional): Default response if the user presses enter
+            without typing anything. Defaults to ``False``.
+
+    Returns:
+        bool: ``True`` if the user confirms, ``False`` otherwise.
+
+    Example:
+        >>> # Assuming user types 'y'
+        >>> prompt_confirm('Proceed?')
+        True
+    """
+    prompt = " [Y/n]: " if default else " [y/N]: "
+    while True:
+        resp = input(message + prompt).strip().lower()
+        if not resp:
+            return default
+        if resp in {"y", "yes"}:
+            return True
+        if resp in {"n", "no"}:
+            return False
+        print("Please respond with 'y' or 'n'.")
