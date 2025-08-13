@@ -12,7 +12,21 @@ from . import db_ops, system_ops, utils, wp_ops
 @click.option("--verbose", is_flag=True, help="Enable verbose logging")
 @click.pass_context
 def cli(ctx: click.Context, dry_run: bool, verbose: bool) -> None:
-    """LAMP environment management tool."""
+    """LAMP environment management tool.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+        dry_run (bool): When ``True`` commands are logged but not executed.
+        verbose (bool): Enable verbose logging output.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> from click.testing import CliRunner
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["--dry-run", "version"])
+    """
     utils.setup_logging()
     if verbose:
         import logging
@@ -25,7 +39,19 @@ def cli(ctx: click.Context, dry_run: bool, verbose: bool) -> None:
 @cli.command("install-lamp")
 @click.pass_context
 def install_lamp(ctx: click.Context) -> None:
-    """Verify and install LAMP services."""
+    """Verify and install LAMP services.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> from click.testing import CliRunner
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["--dry-run", "install-lamp"])
+    """
     services = ["apache2", "mysql", "php"]
     dry_run = ctx.obj["dry_run"]
     for srv in services:
@@ -53,7 +79,24 @@ def create_site(
     db_password: str,
     wordpress: bool,
 ) -> None:
-    """Create a new site with Apache and MySQL."""
+    """Create a new site with Apache and MySQL.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+        domain (str): Domain name for the new site.
+        doc_root (str): Document root directory for the site.
+        db_name (str): Name of the MySQL database to create.
+        db_user (str): MySQL user with access to the database.
+        db_password (str): Password for ``db_user``.
+        wordpress (bool): If ``True`` install WordPress into the site.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["--dry-run", "create-site", "example.com", "--doc-root=/var/www/example", "--db-name=db", "--db-user=user", "--db-password", "pw"])
+    """
     dry_run = ctx.obj["dry_run"]
     system_ops.create_web_directory(doc_root, dry_run=dry_run)
     system_ops.create_virtualhost(domain, doc_root, dry_run=dry_run)
@@ -75,7 +118,22 @@ def create_site(
 def uninstall_site(
     ctx: click.Context, domain: str, doc_root: str, db_name: str, db_user: str
 ) -> None:
-    """Remove a site and all related resources."""
+    """Remove a site and all related resources.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+        domain (str): Domain name of the site to remove.
+        doc_root (str): Document root path of the site.
+        db_name (str): Name of the database to drop.
+        db_user (str): Database user to remove.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["--dry-run", "uninstall-site", "example.com", "--doc-root=/var/www/example", "--db-name=db", "--db-user=user"])
+    """
     dry_run = ctx.obj["dry_run"]
     if not utils.prompt_confirm(f"Remove site {domain}?", default=False):
         click.echo("Aborted")
@@ -88,7 +146,15 @@ def uninstall_site(
 
 @cli.command("list-sites")
 def list_sites() -> None:
-    """List configured Apache virtual hosts."""
+    """List configured Apache virtual hosts.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["list-sites"])
+    """
     for site in system_ops.list_sites():
         click.echo(f"{site['domain']} -> {site['doc_root']}")
 
@@ -97,7 +163,19 @@ def list_sites() -> None:
 @click.argument("doc_root")
 @click.pass_context
 def wp_permissions(ctx: click.Context, doc_root: str) -> None:
-    """Set secure WordPress permissions."""
+    """Set secure WordPress permissions.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+        doc_root (str): Path to the WordPress installation.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["--dry-run", "wp-permissions", "/var/www/site"])
+    """
     dry_run = ctx.obj["dry_run"]
     wp_ops.set_permissions(doc_root, dry_run=dry_run)
 
@@ -106,7 +184,19 @@ def wp_permissions(ctx: click.Context, doc_root: str) -> None:
 @click.argument("domain")
 @click.pass_context
 def generate_ssl(ctx: click.Context, domain: str) -> None:
-    """Generate an SSL certificate using certbot."""
+    """Generate an SSL certificate using certbot.
+
+    Args:
+        ctx (click.Context): Click context carrying shared state.
+        domain (str): Domain name for the certificate.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["--dry-run", "generate-ssl", "example.com"])
+    """
     dry_run = ctx.obj["dry_run"]
     utils.run_command([
         "certbot",
@@ -118,9 +208,25 @@ def generate_ssl(ctx: click.Context, domain: str) -> None:
 
 @cli.command("version")
 def version_cmd() -> None:
-    """Show version."""
+    """Show version information.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> runner = CliRunner()
+        >>> runner.invoke(cli, ["version"])
+    """
     click.echo(__version__)
 
 
 def main() -> None:
+    """Entry point for executing the CLI directly.
+
+    Returns:
+        None: This function does not return a value.
+
+    Example:
+        >>> main()
+    """
     cli()

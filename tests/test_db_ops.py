@@ -1,7 +1,12 @@
 from lampkitctl import db_ops
 
 
-def test_create_database_and_user(monkeypatch):
+def test_create_database_and_user(monkeypatch) -> None:
+    """Ensure database and user creation calls the correct SQL.
+
+    Args:
+        monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
+    """
     recorded = {}
 
     def fake_run(cmd, dry_run, log_cmd=None):
@@ -16,7 +21,12 @@ def test_create_database_and_user(monkeypatch):
     assert "-p******" in recorded["log_cmd"]
 
 
-def test_drop_database_and_user(monkeypatch):
+def test_drop_database_and_user(monkeypatch) -> None:
+    """Verify database and user removal executes SQL commands.
+
+    Args:
+        monkeypatch (pytest.MonkeyPatch): Fixture for patching objects.
+    """
     called = {}
 
     def fake_run(cmd, dry_run, log_cmd=None):
