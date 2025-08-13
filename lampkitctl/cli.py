@@ -250,6 +250,38 @@ def generate_ssl(ctx: click.Context, domain: str) -> None:
     ], dry_run)
 
 
+@cli.command("install-launcher")
+@click.option(
+    "--dir",
+    "preferred_dir",
+    type=click.Path(file_okay=False),
+    help="Install directory (defaults to /usr/local/bin or /opt/homebrew/bin)",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing launcher")
+@click.option("--non-interactive", is_flag=True, help="Fail instead of prompting for sudo")
+def install_launcher_cmd(
+    preferred_dir: str | None, force: bool, non_interactive: bool
+) -> None:
+    """Install a sudo-visible launcher that proxies to this venv."""
+    maybe_reexec_with_sudo(sys.argv, non_interactive=non_interactive, dry_run=False)
+    from .launcher import install_launcher
+
+    path = install_launcher(preferred_dir, force)
+    click.echo(f"Installed launcher at: {path}")
+
+
+@cli.command("uninstall-launcher")
+@click.option("--dir", "preferred_dir", type=click.Path(file_okay=False))
+@click.option("--non-interactive", is_flag=True)
+def uninstall_launcher_cmd(preferred_dir: str | None, non_interactive: bool) -> None:
+    """Remove the global sudo launcher."""
+    maybe_reexec_with_sudo(sys.argv, non_interactive=non_interactive, dry_run=False)
+    from .launcher import uninstall_launcher
+
+    path = uninstall_launcher(preferred_dir)
+    click.echo(f"Removed launcher from: {path}")
+
+
 @cli.command("menu")
 @click.pass_context
 def menu_cmd(ctx: click.Context) -> None:
