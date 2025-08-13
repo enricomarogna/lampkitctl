@@ -190,10 +190,26 @@ sudo lampkitctl menu
 ### Install the LAMP stack
 
 ```bash
-sudo lampkitctl install-lamp
+sudo lampkitctl install-lamp --db-engine auto
+sudo lampkitctl install-lamp --db-engine mysql
+sudo lampkitctl install-lamp --db-engine mariadb
 # or simulate without changes:
-sudo lampkitctl install-lamp --dry-run
+sudo lampkitctl install-lamp --db-engine auto --dry-run
 ```
+
+### Database engine detection
+
+`install-lamp` tries to install `mysql-server` when available and falls back to
+`mariadb-server`. Override the choice with `--db-engine mysql` or
+`--db-engine mariadb`.
+
+### Troubleshooting
+
+- **Package not found** – run `sudo apt-get update` and verify the package name
+  matches your Ubuntu release. If you meant MySQL, use `mysql-server`; for
+  MariaDB, use `mariadb-server`.
+- **APT lock** – another package manager is running. Close Software
+  Updater/apt/dpkg or wait for unattended upgrades.
 
 ### Create a site
 

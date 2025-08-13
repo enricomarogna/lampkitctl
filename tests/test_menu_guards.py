@@ -2,7 +2,7 @@ from lampkitctl import menu, preflight
 
 
 def test_menu_install_lamp_blocking(monkeypatch, capsys):
-    sequence = iter(["Install LAMP server", "Exit"])
+    sequence = iter(["Install LAMP server", "Auto", "Exit"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
     monkeypatch.setattr(
         preflight,
@@ -20,7 +20,9 @@ def test_menu_install_lamp_blocking(monkeypatch, capsys):
         lambda: preflight.CheckResult(True, ""),
     )
     calls = []
-    monkeypatch.setattr(menu.system_ops, "install_service", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(
+        menu.system_ops, "install_lamp_stack", lambda *a, **k: calls.append(a)
+    )
     menu.run_menu()
     captured = capsys.readouterr()
     assert "Preflight failed" in captured.err

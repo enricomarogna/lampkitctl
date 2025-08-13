@@ -85,6 +85,26 @@ def can_write(path: str) -> CheckResult:
     return CheckResult(ok, f"Cannot write {path}. Check permissions.")
 
 
+def apt_lock_suspected() -> CheckResult:
+    """Warn if another apt/dpkg process appears active."""
+
+    p = subprocess.run(
+        [
+            "bash",
+            "-lc",
+            "ps -eo comm | egrep -i 'apt|dpkg|unattended' | grep -v egrep | head -n1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    ok = p.stdout.strip() == ""
+    return CheckResult(
+        ok,
+        "Another package manager appears to be running (apt/dpkg). Please wait or close it.",
+        Severity.WARNING,
+    )
+
+
 def path_exists(path: str | Path) -> CheckResult:
     """Return ``CheckResult`` indicating whether ``path`` exists."""
 
@@ -178,6 +198,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             has_cmd("apt", "apt not found. Install apt package manager."),
             has_cmd("systemctl", "systemctl not found. Install systemd."),
             is_supported_os(),
+            apt_lock_suspected(),
         ]
     if command == "create-site":
         return [

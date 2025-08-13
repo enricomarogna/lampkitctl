@@ -11,15 +11,17 @@ from lampkitctl import menu
 
 def test_run_menu_routing(monkeypatch):
     """Ensure menu routes to correct action."""
-    sequence = iter(["Install LAMP server", "Exit"])
+    sequence = iter(["Install LAMP server", "Auto", "Exit"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
 
     called = {}
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
-    monkeypatch.setattr(menu, "install_lamp", lambda dry_run: called.setdefault("called", dry_run))
+    monkeypatch.setattr(
+        menu, "install_lamp", lambda db_engine="auto", dry_run=False: called.setdefault("called", (db_engine, dry_run))
+    )
 
     menu.run_menu(dry_run=True)
-    assert called["called"] is True
+    assert called["called"] == ("auto", True)
 
 
 def test_validate_domain_invalid():

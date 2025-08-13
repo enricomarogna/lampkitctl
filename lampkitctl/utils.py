@@ -136,20 +136,33 @@ def run_command(
 def classify_apt_error(e: subprocess.CalledProcessError) -> str:
     """Return a friendly diagnostic for ``apt`` failures."""
 
-    out = "".join([e.stdout or "", "\n", e.stderr or ""]).strip()
-    if "Permission denied" in out or e.returncode in (100,):
+    out = "\n".join(filter(None, [e.stdout, e.stderr]))
+
+    def has(text: str) -> bool:
+        return text.lower() in out.lower()
+
+    if has("unable to locate package") or has("has no installation candidate"):
         return (
-            "APT failed (permission/lock).\n"
-            "- Ensure you run as root: sudo ...\n"
-            "- Close other package managers (apt/dpkg).\n"
-            "- Retry: sudo apt-get update && sudo apt-get install ..."
+            "APT failed: package not found.\n"
+            "- Verify the package name and your Ubuntu release.\n"
+            "- Run: sudo apt-get update\n"
+            "- If you intended MySQL server, use 'mysql-server'; for MariaDB, use 'mariadb-server'."
         )
-    if "Could not get lock" in out or "Unable to lock" in out:
+    if has("could not get lock") or has("unable to lock"):
         return (
-            "APT lock is held by another process. Close Software Updater/apt and retry.\n"
-            "Tip: check 'ps aux | grep apt'"
+            "APT is locked by another process.\n"
+            "- Close Software Updater/apt/dpkg, or wait for unattended-upgrades.\n"
+            "- Tip: ps aux | egrep 'apt|dpkg'"
         )
-    return f"Command failed: {e.cmd} (exit {e.returncode})\n{out}".strip()
+    if has("temporary failure resolving"):
+        return (
+            "Network/DNS error while contacting mirrors.\n"
+            "- Check internet connectivity and DNS. Retry: sudo apt-get update"
+        )
+    if e.returncode == 100 and has("permission denied"):
+        return "APT failed due to permissions. Run with sudo or as root."
+    snippet = out.strip().splitlines()[-10:]
+    return "Command failed (apt):\n" + "\n".join(snippet)
 
 
 def prompt_confirm(message: str, default: bool = False) -> bool:

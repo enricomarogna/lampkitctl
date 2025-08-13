@@ -63,26 +63,18 @@ def validate_db_identifier(name: str) -> str:
 # Core actions (testable)
 # ---------------------------------------------------------------------------
 
-def install_lamp(dry_run: bool = False) -> None:
-    """Install required LAMP components if missing.
+def install_lamp(db_engine: str = "auto", dry_run: bool = False) -> None:
+    """Install required LAMP components."""
 
-    Args:
-        dry_run: When ``True`` log actions without executing.
-    """
     maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     checks = preflight.checks_for("install-lamp")
     try:
         preflight.ensure_or_fail(checks, dry_run=dry_run)
     except SystemExit:
         return
-
-    services = ["apache2", "mysql", "php"]
-    for srv in services:
-        if system_ops.check_service(srv):
-            logger.info("service_present", extra={"service": srv})
-        else:
-            logger.info("install_service", extra={"service": srv})
-            system_ops.install_service(srv, dry_run=dry_run)
+    system_ops.install_lamp_stack(
+        None if db_engine == "auto" else db_engine, dry_run=dry_run
+    )
 
 
 def create_site(
@@ -331,7 +323,14 @@ def run_menu(dry_run: bool = False) -> None:
     while True:
         choice = _select("Main > Choose an option", options)
         if choice == "Install LAMP server":
-            install_lamp(dry_run=dry_run)
+            engine_choice = _select(
+                "Main > Install LAMP server > Database engine",
+                ["Auto", "MySQL", "MariaDB"],
+            )
+            install_lamp(
+                db_engine=engine_choice.lower() if engine_choice != "Auto" else "auto",
+                dry_run=dry_run,
+            )
         elif choice == "Create a site":
             try:
                 preflight.ensure_or_fail(

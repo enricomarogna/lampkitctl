@@ -18,7 +18,9 @@ def test_install_lamp_requires_root(monkeypatch):
         preflight, "is_supported_os", lambda: preflight.CheckResult(True, "")
     )
     calls = []
-    monkeypatch.setattr(cli.system_ops, "install_service", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(
+        cli.system_ops, "install_lamp_stack", lambda *a, **k: calls.append(a)
+    )
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["install-lamp"])
     assert result.exit_code == 2
