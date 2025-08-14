@@ -85,24 +85,39 @@ def can_write(path: str) -> CheckResult:
     return CheckResult(ok, f"Cannot write {path}. Check permissions.")
 
 
-def apt_lock_suspected(severity: Severity = Severity.WARNING) -> CheckResult:
-    """Check if an apt/dpkg process seems active."""
+from . import preflight_locks
+
+
+def apt_lock(severity: Severity = Severity.WARNING) -> CheckResult:
+    """Check for active APT/dpkg locks and warn about unattended upgrades."""
+
+    info = preflight_locks.detect_lock()
+    if info.locked:
+        pid = info.holder_pid or "?"
+        cmd = info.holder_cmd or "unknown"
+        path = info.path or "unknown"
+        msg = (
+            f"APT lock held by PID {pid} ({cmd}) on {path}. "
+            "Close the other process or wait."
+        )
+        return CheckResult(False, msg, severity)
 
     p = subprocess.run(
         [
             "bash",
             "-lc",
-            "ps -eo comm | egrep -i 'apt|dpkg|unattended' | grep -v egrep | head -n1",
+            "ps -eo comm | grep -F unattended-upgrades | grep -v grep | head -n1",
         ],
         capture_output=True,
         text=True,
     )
-    ok = p.stdout.strip() == ""
-    msg = (
-        "Another package manager appears to be running (apt/dpkg). "
-        "Please wait or close it. Tip: ps aux | egrep 'apt|dpkg'"
-    )
-    return CheckResult(ok, msg, severity)
+    if p.stdout.strip():
+        return CheckResult(
+            False,
+            "unattended-upgrades is running (no APT lock)",
+            Severity.WARNING,
+        )
+    return CheckResult(True, "")
 
 
 def path_exists(path: str | Path) -> CheckResult:
@@ -201,7 +216,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             has_cmd("apt", "apt not found. Install apt package manager."),
             has_cmd("systemctl", "systemctl not found. Install systemd."),
             is_supported_os(),
-            apt_lock_suspected(Severity.BLOCKING),
+            apt_lock(Severity.BLOCKING),
         ]
     if command == "create-site":
         return [
@@ -211,7 +226,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             has_cmd("php", "PHP not installed. Run: install-lamp."),
             can_write("/etc/hosts"),
             can_write("/var/www"),
-            apt_lock_suspected(Severity.BLOCKING),
+            apt_lock(Severity.BLOCKING),
         ]
     if command == "uninstall-site":
         return [
@@ -227,7 +242,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             apache_paths_present(),
             path_exists(doc_root),
             is_wordpress_dir(doc_root),
-            apt_lock_suspected(Severity.BLOCKING),
+            apt_lock(Severity.BLOCKING),
         ]
     if command == "generate-ssl":
         vhost_available = Path(
@@ -251,7 +266,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
                 "certbot",
                 "certbot not installed. Run: apt install certbot python3-certbot-apache.",
             ),
-            apt_lock_suspected(Severity.BLOCKING),
+            apt_lock(Severity.BLOCKING),
         ]
     return []
 

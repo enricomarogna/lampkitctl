@@ -16,6 +16,7 @@ def test_menu_install_lamp_execs_sudo(monkeypatch):
 
     responses = iter(["Install LAMP server", "MySQL"])
     monkeypatch.setattr(menu, "_select", lambda message, choices: next(responses))
+    monkeypatch.setattr(menu, "_confirm", lambda message, default=True: True)
 
     with pytest.raises(SystemExit):
         menu.run_menu(dry_run=False)
@@ -26,6 +27,8 @@ def test_menu_install_lamp_execs_sudo(monkeypatch):
         "install-lamp",
         "--db-engine",
         "mysql",
+        "--wait-apt-lock",
+        "120",
     ]
 
 
@@ -40,7 +43,13 @@ def test_run_cli_root_calls_subprocess(monkeypatch):
 
     monkeypatch.setattr(menu.subprocess, "call", fake_call)
 
-    rc = menu._run_cli(["install-lamp", "--db-engine", "mysql"], dry_run=False)
+    rc = menu._run_cli([
+        "install-lamp",
+        "--db-engine",
+        "mysql",
+        "--wait-apt-lock",
+        "120",
+    ], dry_run=False)
 
     assert rc == 0
     assert called["args"] == [
@@ -48,4 +57,6 @@ def test_run_cli_root_calls_subprocess(monkeypatch):
         "install-lamp",
         "--db-engine",
         "mysql",
+        "--wait-apt-lock",
+        "120",
     ]

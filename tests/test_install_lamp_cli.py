@@ -1,11 +1,14 @@
 from click.testing import CliRunner
 
 from lampkitctl import cli, packages, system_ops
+from lampkitctl import preflight, preflight_locks
 
 
 def test_install_lamp_cli(monkeypatch):
     calls = []
     monkeypatch.setattr(cli.preflight, "ensure_or_fail", lambda *a, **k: None)
+    monkeypatch.setattr(cli.preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(cli.preflight_locks, "wait_for_lock", lambda *a, **k: preflight_locks.LockInfo(False))
     fake_engine = packages.Engine("mysql", "mysql-server", "mysql-client", "mysql")
     monkeypatch.setattr(system_ops, "detect_db_engine", lambda preferred: fake_engine)
 
@@ -18,6 +21,7 @@ def test_install_lamp_cli(monkeypatch):
         return R()
 
     monkeypatch.setattr(system_ops, "run_command", fake_run)
+    monkeypatch.setattr(system_ops.preflight_locks, "detect_lock", lambda: preflight_locks.LockInfo(False))
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["--dry-run", "install-lamp"])
     assert result.exit_code == 0

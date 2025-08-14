@@ -1,5 +1,5 @@
 from click.testing import CliRunner
-from lampkitctl import cli, packages
+from lampkitctl import cli, packages, preflight, preflight_locks
 
 
 def test_cli_install_lamp(monkeypatch) -> None:
@@ -7,6 +7,8 @@ def test_cli_install_lamp(monkeypatch) -> None:
 
     calls = []
     monkeypatch.setattr(cli.preflight, "ensure_or_fail", lambda *a, **k: None)
+    monkeypatch.setattr(cli.preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(cli.preflight_locks, "wait_for_lock", lambda *a, **k: preflight_locks.LockInfo(False))
 
     def fake_install(pref, dry_run=False):
         calls.append(pref)
@@ -38,6 +40,7 @@ def test_cli_create_site(monkeypatch) -> None:
     monkeypatch.setattr(cli.system_ops, "add_host_entry", lambda *a, **k: None)
     monkeypatch.setattr(cli.db_ops, "create_database_and_user", lambda *a, **k: None)
     monkeypatch.setattr(cli.wp_ops, "install_wordpress", lambda *a, **k: None)
+    monkeypatch.setattr(cli.preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
     runner = CliRunner()
     result = runner.invoke(
         cli.cli,

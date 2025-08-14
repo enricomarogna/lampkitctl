@@ -7,7 +7,7 @@ import sys
 import click
 
 from . import __version__
-from . import db_ops, preflight, system_ops, utils, wp_ops
+from . import db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
 from .elevate import maybe_reexec_with_sudo
 
 
@@ -72,13 +72,45 @@ def guard(command: str):
     type=click.Choice(["auto", "mysql", "mariadb"]),
     default="auto",
 )
+@click.option(
+    "--wait-apt-lock",
+    type=int,
+    default=120,
+    show_default=True,
+    help="Seconds to wait for APT lock (0 to disable)",
+)
 @click.pass_context
-def install_lamp(ctx: click.Context, db_engine: str) -> None:
+def install_lamp(ctx: click.Context, db_engine: str, wait_apt_lock: int) -> None:
     """Verify and install LAMP services."""
 
     non_interactive = ctx.obj.get("non_interactive", False)
     dry_run = ctx.obj["dry_run"]
     maybe_reexec_with_sudo(sys.argv, non_interactive=non_interactive, dry_run=dry_run)
+
+    import time
+
+    if wait_apt_lock > 0:
+        start = time.time()
+
+        def on_progress(info: preflight_locks.LockInfo) -> None:
+            elapsed = int(time.time() - start)
+            pid = info.holder_pid or "?"
+            cmd = info.holder_cmd or "unknown"
+            path = info.path or "unknown"
+            click.echo(
+                f"\rWaiting for apt lock held by PID {pid} ({cmd}) on {path} ... {elapsed}/{wait_apt_lock}s",
+                nl=False,
+            )
+
+        info = preflight_locks.wait_for_lock(wait_apt_lock, on_progress=on_progress)
+        click.echo("")
+        if info.locked:
+            raise SystemExit(2)
+    else:
+        info = preflight_locks.detect_lock()
+        if info.locked:
+            raise SystemExit(2)
+
     checks = preflight.checks_for("install-lamp")
     preflight.ensure_or_fail(
         checks, interactive=not non_interactive, dry_run=dry_run

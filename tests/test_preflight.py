@@ -63,13 +63,31 @@ def test_can_write(monkeypatch):
     assert not preflight.can_write("/tmp").ok
 
 
-def test_apt_lock_suspected(monkeypatch):
+def test_apt_lock(monkeypatch):
+    monkeypatch.setattr(
+        preflight.preflight_locks,
+        "detect_lock",
+        lambda: preflight.preflight_locks.LockInfo(True, 1, "apt", preflight.preflight_locks.LOCK_PATHS[0]),
+    )
+    res = preflight.apt_lock(preflight.Severity.BLOCKING)
+    assert not res.ok
+    assert res.severity is preflight.Severity.BLOCKING
+
+    monkeypatch.setattr(
+        preflight.preflight_locks,
+        "detect_lock",
+        lambda: preflight.preflight_locks.LockInfo(False),
+    )
+
     class P:
-        stdout = "apt"
+        stdout = "unattended-upgrades"
+        stderr = ""
+        returncode = 0
 
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: P())
-    res = preflight.apt_lock_suspected()
-    assert not res.ok and res.severity is preflight.Severity.WARNING
+    res = preflight.apt_lock(preflight.Severity.BLOCKING)
+    assert not res.ok
+    assert res.severity is preflight.Severity.WARNING
 
 
 def test_is_wordpress_dir(tmp_path):

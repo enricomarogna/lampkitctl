@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from lampkitctl import cli, packages, preflight
+from lampkitctl import cli, packages, preflight, preflight_locks
 
 
 def test_install_lamp_preflight_fail(monkeypatch):
@@ -17,6 +17,8 @@ def test_install_lamp_preflight_fail(monkeypatch):
     monkeypatch.setattr(
         preflight, "is_supported_os", lambda: preflight.CheckResult(True, "")
     )
+    monkeypatch.setattr(cli.preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(cli.preflight_locks, "wait_for_lock", lambda *a, **k: preflight_locks.LockInfo(False))
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["--non-interactive", "install-lamp"])
     assert result.exit_code == 2
@@ -37,6 +39,8 @@ def test_install_lamp_preflight_pass(monkeypatch):
     monkeypatch.setattr(
         preflight, "is_supported_os", lambda: preflight.CheckResult(True, "")
     )
+    monkeypatch.setattr(cli.preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(cli.preflight_locks, "wait_for_lock", lambda *a, **k: preflight_locks.LockInfo(False))
     monkeypatch.setattr(
         cli.system_ops,
         "install_lamp_stack",
@@ -57,6 +61,7 @@ def test_generate_ssl_missing_certbot(monkeypatch):
         preflight, "apache_paths_present", lambda: preflight.CheckResult(True, "")
     )
     monkeypatch.setattr(preflight.Path, "exists", lambda self: True)
+    monkeypatch.setattr(preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
     runner = CliRunner()
     result = runner.invoke(
         cli.cli,

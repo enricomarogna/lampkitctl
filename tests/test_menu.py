@@ -13,6 +13,7 @@ def test_run_menu_routing(monkeypatch):
     """Ensure menu builds the correct CLI invocation."""
     sequence = iter(["Install LAMP server", "Auto", "Exit"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
+    monkeypatch.setattr(menu, "_confirm", lambda msg, default=True: True)
 
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
     monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/venv/lampkitctl")
@@ -31,6 +32,8 @@ def test_run_menu_routing(monkeypatch):
         "install-lamp",
         "--db-engine",
         "auto",
+        "--wait-apt-lock",
+        "120",
     ]
 
 
