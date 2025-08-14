@@ -13,6 +13,7 @@ from .packages import (
     PHP_BASE,
     PHP_EXTRAS,
     detect_db_engine,
+    refresh_cache,
 )
 from .utils import run_command
 
@@ -24,9 +25,11 @@ def install_lamp_stack(
     with_php: bool = True,
     with_certbot: bool = True,
     dry_run: bool = False,
+    no_recommends: bool = True,
 ):
     """Install Apache, a database engine and optional PHP/Certbot packages."""
 
+    refresh_cache(dry_run=dry_run)
     eng = detect_db_engine(preferred_engine)
     pkgs = [APACHE_PKG, eng.server_pkg]
     if with_php:
@@ -37,12 +40,11 @@ def install_lamp_stack(
         "install_lamp_stack",
         extra={"packages": pkgs, "db_engine": eng.name, "dry_run": dry_run},
     )
-    run_command(["apt-get", "update"], dry_run=dry_run, capture_output=True)
-    run_command(
-        ["apt-get", "install", "-y", *pkgs],
-        dry_run=dry_run,
-        capture_output=True,
-    )
+    install_cmd = ["apt-get", "install", "-y"]
+    if no_recommends:
+        install_cmd.append("--no-install-recommends")
+    install_cmd.extend(pkgs)
+    run_command(install_cmd, dry_run=dry_run, capture_output=True)
     return eng
 
 

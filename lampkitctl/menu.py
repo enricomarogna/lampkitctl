@@ -383,6 +383,7 @@ def run_menu(dry_run: bool = False) -> None:
                 ],
                 dry_run=dry_run,
             )
+            return
         elif choice == "Create a site":
             try:
                 preflight.ensure_or_fail(

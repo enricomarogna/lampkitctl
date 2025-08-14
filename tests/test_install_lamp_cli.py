@@ -9,6 +9,8 @@ def test_install_lamp_cli(monkeypatch):
     fake_engine = packages.Engine("mysql", "mysql-server", "mysql-client", "mysql")
     monkeypatch.setattr(system_ops, "detect_db_engine", lambda preferred: fake_engine)
 
+    monkeypatch.setattr(system_ops, "refresh_cache", lambda **k: calls.append("update"))
+
     def fake_run(cmd, dry_run=False, capture_output=False, **kwargs):
         calls.append(cmd)
         class R:
