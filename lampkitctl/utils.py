@@ -152,6 +152,7 @@ def classify_apt_error(e: subprocess.CalledProcessError) -> str:
         return (
             "APT is locked by another process.\n"
             "- Close apt/dpkg or wait for unattended-upgrades.\n"
+            "- Retry with '--wait-apt-lock <seconds>'.\n"
             "- Inspect: ps aux | egrep 'apt|dpkg'"
         )
     if has("temporary failure resolving"):

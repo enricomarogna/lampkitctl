@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from lampkitctl import cli, preflight
+from lampkitctl import cli, preflight, preflight_locks
 
 
 def test_install_lamp_requires_root(monkeypatch):
@@ -16,6 +16,10 @@ def test_install_lamp_requires_root(monkeypatch):
     )
     monkeypatch.setattr(
         preflight, "is_supported_os", lambda: preflight.CheckResult(True, "")
+    )
+    monkeypatch.setattr(preflight, "apt_lock", lambda *a, **k: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(
+        cli.preflight_locks, "wait_for_lock", lambda *a, **k: preflight_locks.LockInfo(False)
     )
     calls = []
     monkeypatch.setattr(

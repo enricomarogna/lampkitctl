@@ -15,6 +15,7 @@ It targets both advanced users—through granular commands—and less experience
 * [Security & Warnings](#security--warnings)
 * [Installation](#installation)
 * [Quick Start](#quick-start)
+* [APT lock handling](#apt-lock-handling)
 * [CLI Reference](#cli-reference)
 * [Project Architecture](#project-architecture)
 * [Logging](#logging)
@@ -255,6 +256,28 @@ sudo lampkitctl uninstall-site example.local \
   --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user
+```
+
+## APT lock handling
+
+APT and dpkg use lock files to prevent concurrent package operations. Services
+like `unattended-upgrades` or `apt-daily` may briefly hold these locks. When a
+lockfile is present, package installs will fail until it clears.
+
+Commands such as `install-lamp` accept ``--wait-apt-lock`` to automatically wait
+for the lock. The default is ``120`` seconds; use ``0`` to disable waiting.
+
+```bash
+sudo lampkitctl install-lamp --wait-apt-lock 180
+Waiting for apt lock held by PID 915 (unattended-upgr) on /var/lib/dpkg/lock-frontend ... 27/180s
+```
+
+Inspect locks manually with:
+
+```bash
+ps -eo pid,comm | grep unattended
+lslocks -o PID,COMMAND,PATH | grep lock
+lsof -Fpcn /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock
 ```
 
 ---

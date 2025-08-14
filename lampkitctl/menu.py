@@ -9,7 +9,7 @@ import subprocess
 import sys
 from typing import Iterable, List, Optional
 
-from . import db_ops, preflight, system_ops, utils, wp_ops
+from . import db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
 from .elevate import (
     build_sudo_cmd,
     maybe_reexec_with_sudo,
@@ -88,17 +88,29 @@ def validate_db_identifier(name: str) -> str:
 # Core actions (testable)
 # ---------------------------------------------------------------------------
 
-def install_lamp(db_engine: str = "auto", dry_run: bool = False) -> None:
+def install_lamp(
+    db_engine: str = "auto",
+    wait_apt_lock: int = 120,
+    dry_run: bool = False,
+) -> None:
     """Install required LAMP components."""
 
     maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
+    if wait_apt_lock > 0:
+        info = preflight_locks.wait_for_lock(wait_apt_lock)
+        if info.locked:
+            return
+    else:
+        if preflight_locks.detect_lock().locked:
+            return
     checks = preflight.checks_for("install-lamp")
     try:
         preflight.ensure_or_fail(checks, dry_run=dry_run)
     except SystemExit:
         return
     system_ops.install_lamp_stack(
-        None if db_engine == "auto" else db_engine, dry_run=dry_run
+        None if db_engine == "auto" else db_engine,
+        dry_run=dry_run,
     )
 
 
@@ -375,14 +387,18 @@ def run_menu(dry_run: bool = False) -> None:
                 "Main > Install LAMP server > Database engine",
                 ["Auto", "MySQL", "MariaDB"],
             )
-            _run_cli(
-                [
-                    "install-lamp",
-                    "--db-engine",
-                    engine_choice.lower() if engine_choice != "Auto" else "auto",
-                ],
-                dry_run=dry_run,
+            wait_choice = _confirm(
+                "Main > Install LAMP server > Wait for apt lock?",
+                default=True,
             )
+            args = [
+                "install-lamp",
+                "--db-engine",
+                engine_choice.lower() if engine_choice != "Auto" else "auto",
+                "--wait-apt-lock",
+                "120" if wait_choice else "0",
+            ]
+            _run_cli(args, dry_run=dry_run)
             return
         elif choice == "Create a site":
             try:

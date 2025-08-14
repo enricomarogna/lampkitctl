@@ -16,6 +16,7 @@ from .packages import (
     refresh_cache,
 )
 from .utils import run_command
+from . import preflight_locks
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,17 @@ def install_lamp_stack(
     with_certbot: bool = True,
     dry_run: bool = False,
     no_recommends: bool = True,
+    wait_apt_lock: int = 0,
 ):
     """Install Apache, a database engine and optional PHP/Certbot packages."""
+
+    if wait_apt_lock > 0:
+        info = preflight_locks.wait_for_lock(wait_apt_lock)
+        if info.locked:
+            raise SystemExit(2)
+    else:
+        if preflight_locks.detect_lock().locked:
+            raise SystemExit(2)
 
     refresh_cache(dry_run=dry_run)
     eng = detect_db_engine(preferred_engine)
