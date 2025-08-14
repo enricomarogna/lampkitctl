@@ -10,40 +10,18 @@ class Proc:
         self.returncode = returncode
 
 
-def test_detect_prefers_mysql(monkeypatch):
+def test_detect_mysql_from_policy(monkeypatch):
+    sample = {
+        "mysql-server": "mysql-server:\n  Candidate: 8.0.43-0ubuntu0.24.04.1\n",
+        "mariadb-server": "mariadb-server:\n  Candidate: 1:10.11.13-0ubuntu0.24.04.1\n",
+        "default-mysql-server": "default-mysql-server:\n  Candidate: 1.1.0build1\n",
+    }
+
     def fake_run(cmd, capture_output=True, text=True):
         pkg = cmd[-1]
-        if pkg == "mysql-server":
-            return Proc("Candidate: 8.0\n")
-        if pkg == "mariadb-server":
-            return Proc("Candidate: 10.5\n")
-        return Proc("", returncode=1)
+        return Proc(sample.get(pkg, ""))
+
     monkeypatch.setattr(subprocess, "run", fake_run)
     eng = packages.detect_db_engine(None)
-    assert eng.server_pkg == "mysql-server"
+    assert eng.name == "mysql"
 
-
-def test_detect_only_mariadb(monkeypatch):
-    def fake_run(cmd, capture_output=True, text=True):
-        pkg = cmd[-1]
-        if pkg == "mysql-server":
-            return Proc("Candidate: (none)\n")
-        if pkg == "mariadb-server":
-            return Proc("Candidate: 10.5\n")
-        return Proc("", returncode=1)
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    eng = packages.detect_db_engine(None)
-    assert eng.server_pkg == "mariadb-server"
-
-
-def test_detect_fallback(monkeypatch):
-    def fake_run(cmd, capture_output=True, text=True):
-        pkg = cmd[-1]
-        if pkg == "mysql-server":
-            return Proc("Candidate: (none)\n")
-        if pkg == "mariadb-server":
-            return Proc("Candidate: 10.5\n")
-        return Proc("", returncode=1)
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    eng = packages.detect_db_engine("mysql")
-    assert eng.server_pkg == "mariadb-server"

@@ -200,19 +200,21 @@ sudo lampkitctl install-lamp --db-engine mariadb
 sudo lampkitctl install-lamp --db-engine auto --dry-run
 ```
 
+> **Note:** The install will abort if another apt/dpkg process holds the lock.
+> Wait for it to finish or close other package managers.
+
 ### Database engine detection
 
-`install-lamp` tries to install `mysql-server` when available and falls back to
-`mariadb-server`. Override the choice with `--db-engine mysql` or
-`--db-engine mariadb`.
+`install-lamp` refreshes the apt cache and picks `mysql-server` when available,
+falling back to `mariadb-server`. Override the choice with `--db-engine mysql`
+or `--db-engine mariadb`.
 
 ### Troubleshooting
 
-- **Package not found** – run `sudo apt-get update` and verify the package name
-  matches your Ubuntu release. If you meant MySQL, use `mysql-server`; for
-  MariaDB, use `mariadb-server`.
-- **APT lock** – another package manager is running. Close Software
-  Updater/apt/dpkg or wait for unattended upgrades.
+- **Package not found** – run `sudo apt-get update`, ensure your Ubuntu release
+  is supported, or try `--db-engine mariadb` if MySQL packages are missing.
+- **APT lock** – another package manager is running. Wait or close apt/dpkg
+  processes. Inspect with `ps aux | egrep 'apt|dpkg'`.
 
 ### Create a site
 

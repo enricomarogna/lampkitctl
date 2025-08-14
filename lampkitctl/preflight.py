@@ -85,8 +85,8 @@ def can_write(path: str) -> CheckResult:
     return CheckResult(ok, f"Cannot write {path}. Check permissions.")
 
 
-def apt_lock_suspected() -> CheckResult:
-    """Warn if another apt/dpkg process appears active."""
+def apt_lock_suspected(severity: Severity = Severity.WARNING) -> CheckResult:
+    """Check if an apt/dpkg process seems active."""
 
     p = subprocess.run(
         [
@@ -98,11 +98,11 @@ def apt_lock_suspected() -> CheckResult:
         text=True,
     )
     ok = p.stdout.strip() == ""
-    return CheckResult(
-        ok,
-        "Another package manager appears to be running (apt/dpkg). Please wait or close it.",
-        Severity.WARNING,
+    msg = (
+        "Another package manager appears to be running (apt/dpkg). "
+        "Please wait or close it. Tip: ps aux | egrep 'apt|dpkg'"
     )
+    return CheckResult(ok, msg, severity)
 
 
 def path_exists(path: str | Path) -> CheckResult:
@@ -145,7 +145,10 @@ def service_running(name: str) -> bool:
 def summarize(results: List[CheckResult]) -> str:
     """Return a human readable summary for failing ``results``."""
 
-    lines = ["Preflight failed:"]
+    header = "Preflight failed:"
+    if any("package manager" in r.message.lower() for r in results):
+        header = "Preflight failed: package manager is busy"
+    lines = [header]
     for r in results:
         lines.append(f"- {r.message}")
     return "\n".join(lines)
@@ -198,7 +201,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             has_cmd("apt", "apt not found. Install apt package manager."),
             has_cmd("systemctl", "systemctl not found. Install systemd."),
             is_supported_os(),
-            apt_lock_suspected(),
+            apt_lock_suspected(Severity.BLOCKING),
         ]
     if command == "create-site":
         return [
@@ -208,6 +211,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             has_cmd("php", "PHP not installed. Run: install-lamp."),
             can_write("/etc/hosts"),
             can_write("/var/www"),
+            apt_lock_suspected(Severity.BLOCKING),
         ]
     if command == "uninstall-site":
         return [
@@ -223,6 +227,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             apache_paths_present(),
             path_exists(doc_root),
             is_wordpress_dir(doc_root),
+            apt_lock_suspected(Severity.BLOCKING),
         ]
     if command == "generate-ssl":
         vhost_available = Path(
@@ -246,6 +251,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
                 "certbot",
                 "certbot not installed. Run: apt install certbot python3-certbot-apache.",
             ),
+            apt_lock_suspected(Severity.BLOCKING),
         ]
     return []
 

@@ -144,20 +144,21 @@ def classify_apt_error(e: subprocess.CalledProcessError) -> str:
     if has("unable to locate package") or has("has no installation candidate"):
         return (
             "APT failed: package not found.\n"
-            "- Verify the package name and your Ubuntu release.\n"
             "- Run: sudo apt-get update\n"
-            "- If you intended MySQL server, use 'mysql-server'; for MariaDB, use 'mariadb-server'."
+            "- Ensure your Ubuntu release is supported.\n"
+            "- If MySQL isn't available, try '--db-engine mariadb'."
         )
     if has("could not get lock") or has("unable to lock"):
         return (
             "APT is locked by another process.\n"
-            "- Close Software Updater/apt/dpkg, or wait for unattended-upgrades.\n"
-            "- Tip: ps aux | egrep 'apt|dpkg'"
+            "- Close apt/dpkg or wait for unattended-upgrades.\n"
+            "- Inspect: ps aux | egrep 'apt|dpkg'"
         )
     if has("temporary failure resolving"):
         return (
             "Network/DNS error while contacting mirrors.\n"
-            "- Check internet connectivity and DNS. Retry: sudo apt-get update"
+            "- Check internet connectivity and DNS.\n"
+            "- Retry: sudo apt-get update"
         )
     if e.returncode == 100 and has("permission denied"):
         return "APT failed due to permissions. Run with sudo or as root."
