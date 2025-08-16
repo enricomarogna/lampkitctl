@@ -114,6 +114,26 @@ retrying.
 
 ## Installation
 
+### Quick installer
+
+```bash
+# HTTPS (recommended)
+curl -fsSL https://raw.githubusercontent.com/enricomarogna/lampkitctl/<BRANCH>/scripts/install-lampkitctl.sh | bash
+
+# Or with sudo up-front (script will still run git/pip as your user):
+curl -fsSL https://raw.githubusercontent.com/enricomarogna/lampkitctl/<BRANCH>/scripts/install-lampkitctl.sh | sudo bash
+```
+
+**Options:**
+
+* `--branch <name>` – Git branch to checkout (default: `main`)
+* `--dir <path>` – Install directory (default: `~/lampkitctl`)
+* `--with-tui` – Install optional extras `.[tui]`
+* `--no-launcher` – Skip installing `/usr/bin/lampkitctl`
+* `--use-ssh` – Clone via SSH instead of HTTPS
+* `--wait-apt <sec>` – Wait up to N seconds for apt/dpkg locks (0 to disable)
+* `--update-only` – Only update an existing clone
+
 ### 1) Clone the project
 
 ```bash
