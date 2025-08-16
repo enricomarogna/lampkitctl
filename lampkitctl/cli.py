@@ -156,41 +156,41 @@ def install_lamp(
             raise SystemExit(2)
         password = path.read_text(encoding="utf-8").splitlines()[0]
 
-    if set_db_root_pass is None:
-        if non_interactive:
-            set_pass = password is not None
-        else:
-            set_pass = utils.prompt_yes_no(
-                "Set database root password now?", default=True
-            )
+    provided = password
+    if set_db_root_pass is True:
+        want_set = True
+    elif set_db_root_pass is False:
+        want_set = False
     else:
-        set_pass = set_db_root_pass
+        want_set = click.confirm(
+            "Set database root password now?", default=True
+        ) if sys.stdin.isatty() else False
 
-    if set_pass and password is None:
-        if non_interactive:
+    if want_set and not password:
+        if non_interactive or not sys.stdin.isatty():
             utils.echo_warn("Skipping database root password: no password provided")
-            set_pass = False
+            want_set = False
         else:
             password = click.prompt(
                 "Database root password", hide_input=True, confirmation_prompt=True
             )
-    elif non_interactive and password is None and set_db_root_pass is not False:
+    elif not want_set and non_interactive and not provided and set_db_root_pass is not False:
         utils.echo_warn("Skipping database root password: no password provided")
 
-    if set_pass and password and len(password) < 12 and not weak_db_root_pass:
+    if want_set and password and len(password) < 12 and not weak_db_root_pass:
         utils.echo_error(
             "Password must be at least 12 characters. Use --weak-db-root-pass to override."
         )
         raise SystemExit(2)
 
-    if set_pass and password:
+    if want_set and password:
         logger.info("install_lamp", extra={"db_root_pass": utils.mask_secret(password)})
         if system_ops.ensure_db_ready(dry_run=dry_run):
             db_ops.set_root_password(eng.name, password, db_root_plugin, dry_run=dry_run)
         else:
             utils.echo_warn("Database server not ready, skipping root password")
-    elif password:
-        logger.info("install_lamp", extra={"db_root_pass": utils.mask_secret(password)})
+    elif provided:
+        logger.info("install_lamp", extra={"db_root_pass": utils.mask_secret(provided)})
 
 
 @cli.command("create-site")

@@ -230,8 +230,9 @@ sudo lampkitctl install-lamp --db-engine mariadb
 sudo lampkitctl install-lamp --db-engine auto --dry-run
 ```
 
-By default the installer prompts to set a **database root password**. For a
-non-interactive run supply the password via environment variable:
+By default the installer prompts to set a **database root password**. From the
+interactive menu this prompt is delegated to the CLI so it appears only once.
+For a non-interactive run supply the password via environment variable:
 
 ```bash
 # interactive

@@ -444,8 +444,7 @@ def run_menu(dry_run: bool = False) -> None:
                 "--wait-apt-lock",
                 "120" if wait_choice else "0",
             ]
-            env_var = None
-            if not dry_run and _confirm(
+            if _confirm(
                 "Main > Install LAMP server > Set database root password now?",
                 default=True,
             ):
@@ -453,25 +452,8 @@ def run_menu(dry_run: bool = False) -> None:
                     echo_info(
                         "MariaDB: root will switch from socket to password authentication."
                     )
-                while True:
-                    pw1 = _password(
-                        "Main > Install LAMP server > Database root password"
-                    )
-                    pw2 = _password(
-                        "Main > Install LAMP server > Confirm password"
-                    )
-                    if pw1 != pw2:
-                        echo_error("Passwords do not match")
-                        continue
-                    if len(pw1) < 12:
-                        echo_warn("Password shorter than 12 characters.")
-                    break
-                env_var = "LAMPKITCTL_MENU_DB_ROOT_PASS"
-                os.environ[env_var] = pw1
-                args.extend(["--db-root-pass-env", env_var])
+                args.append("--set-db-root-pass")
             _run_cli(args, dry_run=dry_run)
-            if env_var:
-                os.environ.pop(env_var, None)
             return
         elif choice == "Create a site":
             _create_site_flow(dry_run=dry_run)

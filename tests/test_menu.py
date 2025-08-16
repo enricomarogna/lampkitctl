@@ -34,6 +34,7 @@ def test_run_menu_routing(monkeypatch):
         "auto",
         "--wait-apt-lock",
         "120",
+        "--set-db-root-pass",
     ]
 
 

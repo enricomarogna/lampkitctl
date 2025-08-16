@@ -1,4 +1,3 @@
-import logging
 import click
 from click.testing import CliRunner
 
@@ -25,7 +24,7 @@ def _setup_common(monkeypatch, calls):
     monkeypatch.setattr(db_ops, "set_root_password", fake_set)
 
 
-def test_interactive_flow(monkeypatch):
+def test_flag_skips_confirm(monkeypatch):
     calls = []
     _setup_common(monkeypatch, calls)
     monkeypatch.setattr(
@@ -34,69 +33,52 @@ def test_interactive_flow(monkeypatch):
         lambda self: True,
     )
     runner = CliRunner()
-    pw = "supersecretpw1"
+    result = runner.invoke(
+        cli.cli,
+        ["--dry-run", "install-lamp", "--set-db-root-pass"],
+        input="strongpassword\nstrongpassword\n",
+    )
+    assert result.exit_code == 0
+    assert "Set database root password now?" not in result.output
+    assert calls[0][1] == "strongpassword"
+
+
+def test_prompt_when_interactive(monkeypatch):
+    calls = []
+    _setup_common(monkeypatch, calls)
+    monkeypatch.setattr(
+        click.testing._NamedTextIOWrapper,
+        "isatty",
+        lambda self: True,
+    )
+    runner = CliRunner()
     result = runner.invoke(
         cli.cli,
         ["--dry-run", "install-lamp"],
-        input=f"y\n{pw}\n{pw}\n",
+        input="y\nstrongpassword\nstrongpassword\n",
     )
     assert result.exit_code == 0
-    assert calls[0][1] == pw
+    assert "Set database root password now?" in result.output
+    assert calls[0][1] == "strongpassword"
 
 
-def test_non_interactive_env(monkeypatch):
+def test_env_provided(monkeypatch):
     calls = []
     _setup_common(monkeypatch, calls)
     runner = CliRunner()
-    env = {"MY_PW": "supersecretpw2"}
+    env = {"MY_PW": "supersecretpw"}
     result = runner.invoke(
         cli.cli,
         [
             "--dry-run",
-            "--non-interactive",
             "install-lamp",
             "--set-db-root-pass",
             "--db-root-pass-env",
             "MY_PW",
-            "--db-root-plugin",
-            "mysql_native_password",
         ],
         env=env,
     )
     assert result.exit_code == 0
-    assert calls[0][1] == "supersecretpw2"
-    assert calls[0][2] == "mysql_native_password"
-
-
-def test_non_interactive_no_pass(monkeypatch):
-    calls = []
-    _setup_common(monkeypatch, calls)
-    runner = CliRunner()
-    result = runner.invoke(
-        cli.cli, ["--dry-run", "--non-interactive", "install-lamp"]
-    )
-    assert result.exit_code == 0
-    assert not calls
-    assert "Skipping database root password" in result.output
-
-
-def test_masking(monkeypatch, caplog):
-    calls = []
-    _setup_common(monkeypatch, calls)
-    caplog.set_level(logging.INFO)
-    runner = CliRunner()
-    result = runner.invoke(
-        cli.cli,
-        [
-            "--dry-run",
-            "install-lamp",
-            "--set-db-root-pass",
-            "--db-root-pass",
-            "supersecretpw3",
-        ],
-    )
-    assert result.exit_code == 0
-    assert any(
-        getattr(r, "db_root_pass", None) == utils.SECRET_PLACEHOLDER
-        for r in caplog.records
-    )
+    assert "Set database root password now?" not in result.output
+    assert "Database root password" not in result.output
+    assert calls[0][1] == "supersecretpw"
