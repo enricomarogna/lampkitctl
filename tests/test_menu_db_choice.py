@@ -24,4 +24,5 @@ def test_menu_db_choice(monkeypatch):
         "mariadb",
         "--wait-apt-lock",
         "120",
+        "--set-db-root-pass",
     ]
