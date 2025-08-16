@@ -1,15 +1,22 @@
 # lampkitctl
 
+[![Repository](https://img.shields.io/badge/repo-public-brightgreen)](#)
+[![Built by AI](https://img.shields.io/badge/built%20by-AI-8A2BE2)](#)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](#)
+
+> ## Provenance & intent
+> **lampkitctl** is a **Python rewrite and evolution** of the original Bash tool *lamp-mngr.sh* created by **Enrico Marogna**.  
+> The current codebase has been **entirely developed with AI assistance** (ChatGPT/Codex-style agents) under human supervision: tasks, commits and PRs are produced by AI and reviewed/merged by the maintainer.
+
 **lampkitctl** is a **Python CLI** tool that installs and configures a full **LAMP** stack (Linux, Apache, MySQL/MariaDB, PHP) on **Ubuntu-based** systems.
 It targets both advanced users—through granular commands—and less experienced users with an upcoming **interactive menu**.
-
-> This project is a Python rewrite and enhancement of the original Bash tool “lamp-mngr.sh”.
 
 ---
 
 ## Table of Contents
 
 * [Features](#features)
+* [Provenance & AI development](#provenance--ai-development)
 * [Requirements](#requirements)
 * [Preflight checks](#preflight-checks)
 * [Security & Warnings](#security--warnings)
@@ -492,6 +499,15 @@ No. It’s only needed if you want to issue/manage SSL certificates via `ssl iss
 
 ---
 
+## Provenance & AI development
+
+- **Origin:** Python rewrite of the Bash tool *lamp-mngr.sh* by **Enrico Marogna**.
+- **Process:** the current codebase is **AI-generated** with ChatGPT/Codex-style agents that propose tasks, open PRs and update code. All changes are **reviewed and merged** by the maintainer.
+- **Transparency:** issues and PR descriptions may be authored by AI. Commit messages strive to be reproducible and explicit.
+- **Contributions:** community PRs are welcome; please provide clear reproduction steps, expected behavior, and tests when possible.
+
+---
+
 ## Contributing
 
 1. Fork and create a feature branch (e.g., `feat/...`).
@@ -523,5 +539,3 @@ If you find this project useful, consider [offering me a beer 🍺](https://www.
 ## Credits
 
 Author: **Enrico Marogna** – [https://enricomarogna.com](https://enricomarogna.com)
-
-Origin: Python port and extension of the Bash tool “lamp-mngr.sh”.
