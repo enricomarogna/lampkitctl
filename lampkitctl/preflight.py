@@ -71,6 +71,19 @@ def has_cmd(
     return CheckResult(ok, msg or f"{name} not found. Install {name}.", severity)
 
 
+# Simple wrappers for common LAMP components
+def is_apache_installed() -> CheckResult:
+    return has_cmd("apache2", "Apache not installed. Run: install-lamp.")
+
+
+def is_mysql_installed() -> CheckResult:
+    return has_cmd("mysql", "MySQL not installed. Run: install-lamp.")
+
+
+def is_php_installed() -> CheckResult:
+    return has_cmd("php", "PHP not installed. Run: install-lamp.")
+
+
 def apache_paths_present() -> CheckResult:
     """Check for Apache configuration directories."""
 
@@ -82,7 +95,15 @@ def can_write(path: str) -> CheckResult:
     """Ensure the current user can write to ``path``."""
 
     ok = os.access(path, os.W_OK)
-    return CheckResult(ok, f"Cannot write {path}. Check permissions.")
+    if ok:
+        return CheckResult(True, "")
+    if path == "/etc/hosts":
+        msg = "Root required to modify /etc/hosts. Re-run with sudo."
+    elif path.startswith("/var/www"):
+        msg = "Root required to modify /var/www. Re-run with sudo."
+    else:
+        msg = f"Cannot write {path}. Check permissions."
+    return CheckResult(False, msg)
 
 
 from . import preflight_locks

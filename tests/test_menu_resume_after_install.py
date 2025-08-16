@@ -1,4 +1,4 @@
-from lampkitctl import menu
+from lampkitctl import menu, preflight
 
 
 def test_resume_after_install(monkeypatch):
@@ -11,6 +11,10 @@ def test_resume_after_install(monkeypatch):
         return 0
 
     monkeypatch.setattr(menu, "_run_cli", fake_run_cli)
+    monkeypatch.setattr(menu.preflight, "is_apache_installed", lambda: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(menu.preflight, "apache_paths_present", lambda: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(menu.preflight, "is_mysql_installed", lambda: preflight.CheckResult(True, ""))
+    monkeypatch.setattr(menu.preflight, "is_php_installed", lambda: preflight.CheckResult(True, ""))
     select_iter = iter(["Create a site", "Exit"])
     text_iter = iter(["example.com", "/var/www/example", "db", "user"])
 

@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Optional
 
+import click
+
 
 class JsonFormatter(logging.Formatter):
     """Format log records as JSON strings.
@@ -237,6 +239,27 @@ def echo_err(message: str) -> None:
     """Print ``message`` to standard error."""
 
     print(message, file=sys.stderr)
+
+
+# Colored output helpers
+def echo_error(msg: str) -> None:
+    click.secho(msg, fg="red", bold=True)
+
+
+def echo_warn(msg: str) -> None:
+    click.secho(msg, fg="yellow")
+
+
+def echo_info(msg: str) -> None:
+    click.secho(msg, fg="cyan")
+
+
+def echo_ok(msg: str) -> None:
+    click.secho(msg, fg="green")
+
+
+def echo_title(msg: str) -> None:
+    click.secho(msg, fg="magenta", bold=True)
 
 
 def is_non_interactive() -> bool:

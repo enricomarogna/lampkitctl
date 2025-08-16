@@ -10,6 +10,7 @@ import sys
 from typing import Iterable, List, Optional
 
 from . import db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
+from .utils import echo_error, echo_warn, echo_ok, echo_info, echo_title
 from .elevate import (
     build_sudo_cmd,
     maybe_reexec_with_sudo,
@@ -225,7 +226,7 @@ def _select(message: str, choices: Iterable[str]) -> str:
             return choices_list[int(resp) - 1]
 
 
-def _text(message: str, default: Optional[str] = None) -> str:
+def _text(message: str, default: str = "") -> str:
     if inquirer:  # pragma: no cover
         return inquirer.text(message=message, default=default).execute()
     prompt = f"{message}"
@@ -233,7 +234,7 @@ def _text(message: str, default: Optional[str] = None) -> str:
         prompt += f" [{default}]"
     prompt += ": "
     resp = input(prompt).strip()
-    return resp or (default or "")
+    return resp or default
 
 
 def _password(message: str) -> str:
@@ -253,6 +254,24 @@ def _confirm(message: str, default: bool = False) -> bool:
 # ---------------------------------------------------------------------------
 
 def _create_site_flow(dry_run: bool) -> None:
+    checks = [
+        preflight.is_apache_installed(),
+        preflight.apache_paths_present(),
+        preflight.is_mysql_installed(),
+        preflight.is_php_installed(),
+    ]
+    missing = [c for c in checks if not c.ok]
+    if missing:
+        echo_error(
+            "LAMP stack not installed/configured. You must run install-lamp before creating a site."
+        )
+        if _confirm("Run install-lamp now?"):
+            rc = _run_cli(["install-lamp"], dry_run=dry_run)
+            if rc != 0:
+                echo_error("install-lamp failed. Please fix errors and retry.")
+                return
+        else:
+            return
     domain = _text("Main > Create a site > Domain")
     if not domain:
         return
@@ -300,7 +319,7 @@ def _create_site_flow(dry_run: bool) -> None:
 def _uninstall_site_flow(dry_run: bool) -> None:
     sites = list_installed_sites()
     if not sites:
-        print("No sites found")
+        echo_error("No sites found")
         return
     choices = [s["domain"] for s in sites]
     domain = _select("Main > Uninstall site > Select domain", choices)
@@ -328,6 +347,22 @@ def _uninstall_site_flow(dry_run: bool) -> None:
 
 
 def _wp_permissions_flow(dry_run: bool) -> None:
+    checks = [
+        preflight.is_apache_installed(),
+        preflight.apache_paths_present(),
+    ]
+    missing = [c for c in checks if not c.ok]
+    if missing:
+        echo_error(
+            "LAMP stack not installed/configured. You must run install-lamp before setting permissions."
+        )
+        if _confirm("Run install-lamp now?"):
+            rc = _run_cli(["install-lamp"], dry_run=dry_run)
+            if rc != 0:
+                echo_error("install-lamp failed. Please fix errors and retry.")
+            else:
+                _wp_permissions_flow(dry_run=dry_run)
+        return
     doc_root = _text("Main > Set WordPress permissions > Path", default="")
     if not doc_root:
         return
@@ -338,7 +373,7 @@ def _wp_permissions_flow(dry_run: bool) -> None:
         ]
         if all(c.ok for c in checks):
             break
-        print(preflight.summarize([c for c in checks if not c.ok]))
+        echo_error(preflight.summarize([c for c in checks if not c.ok]))
         doc_root = _text("Main > Set WordPress permissions > Path", default="")
         if not doc_root:
             return
@@ -351,7 +386,7 @@ def _wp_permissions_flow(dry_run: bool) -> None:
 def _generate_ssl_flow(dry_run: bool) -> None:
     sites = list_installed_sites()
     if not sites:
-        print("No domains available")
+        echo_error("No domains available")
         return
     choices = [s["domain"] for s in sites]
     domain = _select("Main > Generate SSL certificate > Select domain", choices)
@@ -421,7 +456,7 @@ def run_menu(dry_run: bool = False) -> None:
             _generate_ssl_flow(dry_run=dry_run)
         elif choice == "List installed sites":
             if not preflight.has_cmd("apache2").ok or not preflight.apache_paths_present().ok:
-                print("Apache not installed. No sites to list.")
+                echo_error("Apache not installed. No sites to list.")
             else:
                 _list_sites_flow()
         elif choice == "Exit":

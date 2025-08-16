@@ -182,7 +182,8 @@ Legacy: `python main.py --help` also works.
 ## Quick Start
 
 Commands run preflight checks and provide guidance if the environment is
-missing pieces.
+missing pieces. Informational output is color-coded: errors appear in **red**,
+warnings in **yellow**, and successes in **green**.
 
 ### Launch the interactive menu
 
@@ -193,6 +194,11 @@ sudo lampkitctl menu
 
 When elevation is required, the tool continues the chosen action after
 acquiring sudo; you do not need to re-select options.
+
+Choosing **Create a site** performs a LAMP preflight before asking for
+domain or database details. If Apache, MySQL, or PHP are missing, the menu
+offers to run `install-lamp` and resumes site creation once the installation
+completes.
 
 ### Install the LAMP stack
 
@@ -413,6 +419,10 @@ jobs:
 
 **Do I need sudo?**
 Yes—most operations (package install, `/etc` writes, services) require elevated privileges.
+
+**I see red or yellow messages**
+Colored output highlights problems (red) or warnings (yellow). Use the provided
+guidance to resolve issues before re-running commands.
 
 **`sudo lampkitctl` returns "command not found"**
 Some systems configure `sudo` with a *secure* `PATH` that omits your virtualenv. Install the global launcher so `sudo` can find the CLI:
