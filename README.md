@@ -131,6 +131,9 @@ cd lampkitctl
 ### 2) (Recommended) Create a virtualenv
 
 ```bash
+sudo apt update
+sudo apt install python3.12-venv
+
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
