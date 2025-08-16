@@ -220,7 +220,7 @@ or `--db-engine mariadb`.
 ### Create a site
 
 ```bash
-sudo lampkitctl create-site example.local \
+sudo "$(command -v lampkitctl)" create-site example.local \
   --doc-root /var/www/example.local \
   --db-name example_db \
   --db-user example_user \
@@ -314,6 +314,8 @@ menu                # Launch the interactive menu (if extras installed).
 * `--db-user <user>`
 * `--db-password <password>`
 * `--wordpress`
+* `--db-root-auth {auto,password,socket}`
+* `--db-root-pass <password>`
 
 
 ---

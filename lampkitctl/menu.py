@@ -34,13 +34,10 @@ def _run_cli(args: list[str], *, dry_run: bool = False) -> int:
         base = [exe]
     else:
         base = [sys.executable, "-m", "lampkitctl"]
-
+    cmd = base + args
     if os.geteuid() != 0 and not dry_run:
-        cmd = build_sudo_cmd(base + args)
-        os.execvp(cmd[0], cmd)
-        return 0
-
-    return subprocess.call(base + args)
+        cmd = build_sudo_cmd(cmd)
+    return subprocess.call(cmd)
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +291,10 @@ def _create_site_flow(dry_run: bool) -> None:
     ]
     if wordpress:
         args.append("--wordpress")
-    _run_cli(args, dry_run=dry_run)
+    rc = _run_cli(args, dry_run=dry_run)
+    if rc != 0 and _confirm("Run install-lamp now?", default=True):
+        if _run_cli(["install-lamp"], dry_run=dry_run) == 0:
+            _run_cli(args, dry_run=dry_run)
 
 
 def _uninstall_site_flow(dry_run: bool) -> None:
@@ -321,20 +321,31 @@ def _uninstall_site_flow(dry_run: bool) -> None:
         "--db-user",
         db_user,
     ]
-    _run_cli(args, dry_run=dry_run)
+    rc = _run_cli(args, dry_run=dry_run)
+    if rc != 0 and _confirm("Run install-lamp now?", default=True):
+        if _run_cli(["install-lamp"], dry_run=dry_run) == 0:
+            _run_cli(args, dry_run=dry_run)
 
 
 def _wp_permissions_flow(dry_run: bool) -> None:
-    doc_root = _text("Main > Set WordPress permissions > Path")
+    doc_root = _text("Main > Set WordPress permissions > Path", default="")
     if not doc_root:
         return
-    try:
-        preflight.ensure_or_fail(
-            preflight.checks_for("wp-permissions", doc_root=doc_root)
-        )
-    except SystemExit:
-        return
-    _run_cli(["wp-permissions", doc_root], dry_run=dry_run)
+    while True:
+        checks = [
+            preflight.path_exists(doc_root),
+            preflight.is_wordpress_dir(doc_root),
+        ]
+        if all(c.ok for c in checks):
+            break
+        print(preflight.summarize([c for c in checks if not c.ok]))
+        doc_root = _text("Main > Set WordPress permissions > Path", default="")
+        if not doc_root:
+            return
+    rc = _run_cli(["wp-permissions", doc_root], dry_run=dry_run)
+    if rc != 0 and _confirm("Run install-lamp now?", default=True):
+        if _run_cli(["install-lamp"], dry_run=dry_run) == 0:
+            _run_cli(["wp-permissions", doc_root], dry_run=dry_run)
 
 
 def _generate_ssl_flow(dry_run: bool) -> None:
@@ -401,24 +412,8 @@ def run_menu(dry_run: bool = False) -> None:
             _run_cli(args, dry_run=dry_run)
             return
         elif choice == "Create a site":
-            try:
-                preflight.ensure_or_fail(
-                    preflight.checks_for("create-site")
-                )
-            except SystemExit:
-                if _confirm("Run install-lamp now?", default=False):
-                    _run_cli(["install-lamp"], dry_run=dry_run)
-                continue
             _create_site_flow(dry_run=dry_run)
         elif choice == "Uninstall site":
-            try:
-                preflight.ensure_or_fail(
-                    preflight.checks_for("uninstall-site")
-                )
-            except SystemExit:
-                if _confirm("Run install-lamp now?", default=False):
-                    _run_cli(["install-lamp"], dry_run=dry_run)
-                continue
             _uninstall_site_flow(dry_run=dry_run)
         elif choice == "Set WordPress permissions":
             _wp_permissions_flow(dry_run=dry_run)

@@ -2,26 +2,26 @@ import pytest
 
 from lampkitctl import menu
 
-def test_menu_install_lamp_execs_sudo(monkeypatch):
+
+def test_menu_install_lamp_uses_sudo(monkeypatch):
     captured = {}
 
     monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/abs/path/to/lampkitctl")
     monkeypatch.setattr(menu.os, "geteuid", lambda: 1000)
 
-    def fake_execvp(file, args):
-        captured["cmd"] = args
-        raise SystemExit()
+    def fake_call(args):
+        captured["args"] = args
+        return 0
 
-    monkeypatch.setattr(menu.os, "execvp", fake_execvp)
+    monkeypatch.setattr(menu.subprocess, "call", fake_call)
 
     responses = iter(["Install LAMP server", "MySQL"])
     monkeypatch.setattr(menu, "_select", lambda message, choices: next(responses))
     monkeypatch.setattr(menu, "_confirm", lambda message, default=True: True)
 
-    with pytest.raises(SystemExit):
-        menu.run_menu(dry_run=False)
+    menu.run_menu(dry_run=False)
 
-    assert captured["cmd"] == [
+    assert captured["args"] == [
         "sudo",
         "/abs/path/to/lampkitctl",
         "install-lamp",
