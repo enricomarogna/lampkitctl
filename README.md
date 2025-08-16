@@ -3,10 +3,15 @@
 [![Repository](https://img.shields.io/badge/repo-public-brightgreen)](#)
 [![Built by AI](https://img.shields.io/badge/built%20by-AI-8A2BE2)](#)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](#)
+[![Status](https://img.shields.io/badge/status-alpha%2Fexperimental-orange)](#)
 
 > ## Provenance & intent
 > **lampkitctl** is a **Python rewrite and evolution** of the original Bash tool *lamp-mngr.sh* created by **Enrico Marogna**.  
 > The current codebase has been **entirely developed with AI assistance** (ChatGPT/Codex-style agents) under human supervision: tasks, commits and PRs are produced by AI and reviewed/merged by the maintainer.
+
+> ⚠️ **Status / Disclaimer**
+> This project is **actively developed** and currently **unstable**. Interfaces and behavior may change without notice.  
+> **Not recommended for production use.** Test in disposable VMs/containers first and keep reliable backups.
 
 **lampkitctl** is a **Python CLI** tool that installs and configures a full **LAMP** stack (Linux, Apache, MySQL/MariaDB, PHP) on **Ubuntu-based** systems.
 It targets both advanced users—through granular commands—and less experienced users with an upcoming **interactive menu**.
@@ -29,6 +34,7 @@ It targets both advanced users—through granular commands—and less experience
 * [Testing & Quality](#testing--quality)
 * [Roadmap](#roadmap)
 * [Troubleshooting / FAQ](#troubleshooting--faq)
+* [Status / Disclaimer](#status--disclaimer)
 * [Contributing](#contributing)
 * [License](#license)
 * [Support](#support)
@@ -505,6 +511,20 @@ No. It’s only needed if you want to issue/manage SSL certificates via `ssl iss
 - **Process:** the current codebase is **AI-generated** with ChatGPT/Codex-style agents that propose tasks, open PRs and update code. All changes are **reviewed and merged** by the maintainer.
 - **Transparency:** issues and PR descriptions may be authored by AI. Commit messages strive to be reproducible and explicit.
 - **Contributions:** community PRs are welcome; please provide clear reproduction steps, expected behavior, and tests when possible.
+
+---
+
+## Status / Disclaimer
+
+- **Alpha quality**: features, flags, and outputs may change. Expect bugs and breaking changes.  
+- **Not production-ready**: use only for testing and evaluation. Avoid running on critical systems.
+- **Run with care**: many operations require `sudo` and can modify system services, `/etc/hosts`, Apache vhosts, and databases.  
+- **Safety tips**:
+  - Prefer `--dry-run` first to preview actions.
+  - Test in a fresh VM/container or a snapshot.
+  - Review commands and confirm prompts before proceeding.
+  - Keep backups of configuration and data.
+- **Issue reporting**: please open issues with logs, OS version, and exact command line.
 
 ---
 
