@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import time
 from pathlib import Path
 from typing import List
 
@@ -19,6 +20,24 @@ from .utils import run_command, atomic_append
 from . import preflight_locks
 
 logger = logging.getLogger(__name__)
+
+
+def ensure_db_ready(retries: int = 5, delay: float = 1.0, dry_run: bool = False) -> bool:
+    """Return ``True`` when the database server responds to ``SELECT 1``."""
+
+    if dry_run:
+        return True
+    for _ in range(retries):
+        proc = run_command(
+            ["mysql", "--protocol=socket", "-u", "root", "-e", "SELECT 1"],
+            dry_run=False,
+            capture_output=True,
+            check=False,
+        )
+        if proc.returncode == 0:
+            return True
+        time.sleep(delay)
+    return False
 
 
 def install_lamp_stack(

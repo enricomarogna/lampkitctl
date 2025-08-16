@@ -17,7 +17,7 @@ def test_cli_install_lamp(monkeypatch) -> None:
     monkeypatch.setattr(cli.system_ops, "install_lamp_stack", fake_install)
     runner = CliRunner()
     result = runner.invoke(
-        cli.cli, ["--dry-run", "install-lamp", "--db-engine", "mariadb"]
+        cli.cli, ["--dry-run", "install-lamp", "--db-engine", "mariadb"], input="n\n"
     )
     assert result.exit_code == 0
     assert calls == ["mariadb"]

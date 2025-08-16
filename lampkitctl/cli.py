@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import functools
 import sys
+import os
+from pathlib import Path
+import logging
 
 import click
 
 from . import __version__
 from . import db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
 from .elevate import maybe_reexec_with_sudo
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -79,8 +84,29 @@ def guard(command: str):
     show_default=True,
     help="Seconds to wait for APT lock (0 to disable)",
 )
+@click.option("--set-db-root-pass/--no-set-db-root-pass", default=None)
+@click.option("--db-root-pass", default=None, help="Database root password")
+@click.option("--db-root-pass-env", default=None, help="Env var with DB root password")
+@click.option("--db-root-pass-file", type=click.Path(), default=None, help="File with DB root password")
+@click.option(
+    "--db-root-plugin",
+    type=click.Choice(["default", "mysql_native_password", "caching_sha2_password"]),
+    default="default",
+    show_default=True,
+)
+@click.option("--weak-db-root-pass", is_flag=True, help="Allow weak DB root password")
 @click.pass_context
-def install_lamp(ctx: click.Context, db_engine: str, wait_apt_lock: int) -> None:
+def install_lamp(
+    ctx: click.Context,
+    db_engine: str,
+    wait_apt_lock: int,
+    set_db_root_pass: bool | None,
+    db_root_pass: str | None,
+    db_root_pass_env: str | None,
+    db_root_pass_file: str | None,
+    db_root_plugin: str,
+    weak_db_root_pass: bool,
+) -> None:
     """Verify and install LAMP services."""
 
     non_interactive = ctx.obj.get("non_interactive", False)
@@ -120,6 +146,51 @@ def install_lamp(ctx: click.Context, db_engine: str, wait_apt_lock: int) -> None
         dry_run=dry_run,
     )
     click.echo(f"Database engine: {eng.name} ({eng.server_pkg})")
+
+    password = db_root_pass
+    if db_root_pass_env and not password:
+        password = os.environ.get(db_root_pass_env)
+    if db_root_pass_file and not password:
+        path = Path(db_root_pass_file)
+        if path.stat().st_mode & 0o077:
+            raise SystemExit(2)
+        password = path.read_text(encoding="utf-8").splitlines()[0]
+
+    if set_db_root_pass is None:
+        if non_interactive:
+            set_pass = password is not None
+        else:
+            set_pass = utils.prompt_yes_no(
+                "Set database root password now?", default=True
+            )
+    else:
+        set_pass = set_db_root_pass
+
+    if set_pass and password is None:
+        if non_interactive:
+            utils.echo_warn("Skipping database root password: no password provided")
+            set_pass = False
+        else:
+            password = click.prompt(
+                "Database root password", hide_input=True, confirmation_prompt=True
+            )
+    elif non_interactive and password is None and set_db_root_pass is not False:
+        utils.echo_warn("Skipping database root password: no password provided")
+
+    if set_pass and password and len(password) < 12 and not weak_db_root_pass:
+        utils.echo_error(
+            "Password must be at least 12 characters. Use --weak-db-root-pass to override."
+        )
+        raise SystemExit(2)
+
+    if set_pass and password:
+        logger.info("install_lamp", extra={"db_root_pass": utils.mask_secret(password)})
+        if system_ops.ensure_db_ready(dry_run=dry_run):
+            db_ops.set_root_password(eng.name, password, db_root_plugin, dry_run=dry_run)
+        else:
+            utils.echo_warn("Database server not ready, skipping root password")
+    elif password:
+        logger.info("install_lamp", extra={"db_root_pass": utils.mask_secret(password)})
 
 
 @cli.command("create-site")
