@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Iterable, List, Optional
 
 
@@ -165,6 +167,26 @@ def classify_apt_error(e: subprocess.CalledProcessError) -> str:
         return "APT failed due to permissions. Run with sudo or as root."
     snippet = out.strip().splitlines()[-10:]
     return "Command failed (apt):\n" + "\n".join(snippet)
+
+
+def atomic_append(path: str | Path, content: str) -> None:
+    """Append ``content`` to ``path`` atomically.
+
+    The original file mode is preserved. ``content`` is appended to a temporary
+    file which is then moved into place using :func:`os.replace`.
+    """
+
+    p = Path(path)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    try:
+        existing = p.read_text(encoding="utf-8")
+        mode = p.stat().st_mode
+    except FileNotFoundError:
+        existing = ""
+        mode = 0o644
+    tmp.write_text(existing + content, encoding="utf-8")
+    os.chmod(tmp, mode)
+    os.replace(tmp, p)
 
 
 def prompt_confirm(message: str, default: bool = False) -> bool:

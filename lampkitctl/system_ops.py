@@ -15,7 +15,7 @@ from .packages import (
     detect_db_engine,
     refresh_cache,
 )
-from .utils import run_command
+from .utils import run_command, atomic_append
 from . import preflight_locks
 
 logger = logging.getLogger(__name__)
@@ -101,22 +101,29 @@ def install_service(service: str, dry_run: bool = False) -> None:
 def create_web_directory(path: str, dry_run: bool = False) -> None:
     """Create the document root for a website.
 
-    Args:
-        path (str): Directory path to create.
-        dry_run (bool, optional): If ``True`` the command is logged but not
-            executed. Defaults to ``False``.
-
-    Returns:
-        None: This function does not return a value.
-
-    Raises:
-        subprocess.CalledProcessError: If the directory creation fails and
-            ``dry_run`` is ``False``.
-
-    Example:
-        >>> create_web_directory("/var/www/example", dry_run=True)
+    The directory is owned by ``www-data:www-data``. The invoking user is added
+    to the ``www-data`` group if needed.
     """
+
     run_command(["mkdir", "-p", path], dry_run)
+    run_command(["chown", "-R", "www-data:www-data", path], dry_run)
+    user = os.environ.get("SUDO_USER") or os.environ.get("USER")
+    if user and user != "root":
+        try:
+            import grp
+            import pwd
+
+            groups = [g.gr_name for g in grp.getgrall() if user in g.gr_mem]
+            gid = pwd.getpwnam(user).pw_gid
+            groups.append(grp.getgrgid(gid).gr_name)
+            in_group = "www-data" in groups
+        except Exception:  # pragma: no cover - system specific
+            in_group = True
+        if not in_group:
+            run_command(["usermod", "-a", "-G", "www-data", user], dry_run)
+            print(
+                f"Added {user} to www-data group. You may need to log out and back in."
+            )
 
 
 def create_virtualhost(
@@ -213,8 +220,7 @@ def add_host_entry(domain: str, ip: str = "127.0.0.1", hosts_file: str = "/etc/h
     if dry_run:
         logger.info("add_host_entry", extra={"entry": entry.strip()})
         return
-    with open(hosts_file, "a", encoding="utf-8") as fh:
-        fh.write(entry)
+    atomic_append(hosts_file, entry)
 
 
 def list_sites(sites_available: str = "/etc/apache2/sites-available") -> List[dict]:
@@ -328,9 +334,12 @@ def remove_host_entry(domain: str, hosts_file: str = "/etc/hosts", dry_run: bool
         return
     if not os.path.exists(hosts_file):
         return
-    with open(hosts_file, "r", encoding="utf-8") as fh:
-        lines = fh.readlines()
-    with open(hosts_file, "w", encoding="utf-8") as fh:
+    path = Path(hosts_file)
+    lines = path.read_text(encoding="utf-8").splitlines(True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
         for line in lines:
             if domain not in line:
                 fh.write(line)
+    os.chmod(tmp, path.stat().st_mode)
+    os.replace(tmp, path)

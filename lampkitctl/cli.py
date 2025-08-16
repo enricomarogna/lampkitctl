@@ -129,6 +129,13 @@ def install_lamp(ctx: click.Context, db_engine: str, wait_apt_lock: int) -> None
 @click.option("--db-user", required=True, help="Database user")
 @click.option("--db-password", prompt=True, hide_input=True, confirmation_prompt=True)
 @click.option("--wordpress", is_flag=True, help="Install WordPress")
+@click.option(
+    "--db-root-auth",
+    type=click.Choice(["auto", "password", "socket"]),
+    default="auto",
+    show_default=True,
+)
+@click.option("--db-root-pass", default=None, help="Database root password")
 @click.pass_context
 @guard("create-site")
 def create_site(
@@ -139,6 +146,8 @@ def create_site(
     db_user: str,
     db_password: str,
     wordpress: bool,
+    db_root_auth: str,
+    db_root_pass: str | None,
 ) -> None:
     """Create a new site with Apache and MySQL.
 
@@ -163,8 +172,23 @@ def create_site(
     system_ops.create_virtualhost(domain, doc_root, dry_run=dry_run)
     system_ops.enable_site(domain, dry_run=dry_run)
     system_ops.add_host_entry(domain, dry_run=dry_run)
+    auth_mode = db_root_auth
+    if auth_mode == "auto":
+        auth_mode = "socket" if db_ops.detect_engine() == "mariadb" else "password"
+    root_pw = db_root_pass
+    if auth_mode == "password" and not root_pw:
+        if dry_run:
+            root_pw = ""
+        elif ctx.obj.get("non_interactive", False):
+            raise SystemExit(2)
+        else:
+            root_pw = click.prompt("Database root password", hide_input=True)
     db_ops.create_database_and_user(
-        db_name, db_user, db_password, dry_run=dry_run
+        db_name,
+        db_user,
+        db_password,
+        root_password=root_pw if auth_mode == "password" else None,
+        dry_run=dry_run,
     )
     if wordpress:
         wp_ops.install_wordpress(doc_root, db_name, db_user, db_password, dry_run=dry_run)
@@ -175,10 +199,23 @@ def create_site(
 @click.option("--doc-root", required=True)
 @click.option("--db-name", required=True)
 @click.option("--db-user", required=True)
+@click.option(
+    "--db-root-auth",
+    type=click.Choice(["auto", "password", "socket"]),
+    default="auto",
+    show_default=True,
+)
+@click.option("--db-root-pass", default=None)
 @click.pass_context
 @guard("uninstall-site")
 def uninstall_site(
-    ctx: click.Context, domain: str, doc_root: str, db_name: str, db_user: str
+    ctx: click.Context,
+    domain: str,
+    doc_root: str,
+    db_name: str,
+    db_user: str,
+    db_root_auth: str,
+    db_root_pass: str | None,
 ) -> None:
     """Remove a site and all related resources.
 
@@ -203,7 +240,23 @@ def uninstall_site(
     system_ops.remove_virtualhost(domain, dry_run=dry_run)
     system_ops.remove_host_entry(domain, dry_run=dry_run)
     system_ops.remove_web_directory(doc_root, dry_run=dry_run)
-    db_ops.drop_database_and_user(db_name, db_user, dry_run=dry_run)
+    auth_mode = db_root_auth
+    if auth_mode == "auto":
+        auth_mode = "socket" if db_ops.detect_engine() == "mariadb" else "password"
+    root_pw = db_root_pass
+    if auth_mode == "password" and not root_pw:
+        if dry_run:
+            root_pw = ""
+        elif ctx.obj.get("non_interactive", False):
+            raise SystemExit(2)
+        else:
+            root_pw = click.prompt("Database root password", hide_input=True)
+    db_ops.drop_database_and_user(
+        db_name,
+        db_user,
+        root_password=root_pw if auth_mode == "password" else None,
+        dry_run=dry_run,
+    )
 
 
 @cli.command("list-sites")

@@ -224,8 +224,7 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             apache_paths_present(),
             has_cmd("mysql", "MySQL not installed. Run: install-lamp."),
             has_cmd("php", "PHP not installed. Run: install-lamp."),
-            can_write("/etc/hosts"),
-            can_write("/var/www"),
+            is_root_or_sudo(),
             apt_lock(Severity.BLOCKING),
         ]
     if command == "uninstall-site":
@@ -233,13 +232,13 @@ def checks_for(command: str, **kwargs) -> List[CheckResult]:
             has_cmd("apache2", "Apache not installed. Run: install-lamp."),
             apache_paths_present(),
             has_cmd("mysql", "MySQL not installed. Run: install-lamp."),
-            can_write("/etc/hosts"),
-            can_write("/var/www"),
+            is_root_or_sudo(),
         ]
     if command == "wp-permissions":
         return [
             has_cmd("apache2", "Apache not installed. Run: install-lamp."),
             apache_paths_present(),
+            is_root_or_sudo(),
             path_exists(doc_root),
             is_wordpress_dir(doc_root),
             apt_lock(Severity.BLOCKING),

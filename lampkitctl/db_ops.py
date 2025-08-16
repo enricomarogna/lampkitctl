@@ -2,11 +2,23 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 from typing import Optional
 
 from .utils import run_command
 
 logger = logging.getLogger(__name__)
+
+
+def detect_engine() -> str:
+    """Return the installed database engine name (``mysql`` or ``mariadb``)."""
+
+    try:
+        p = subprocess.run(["mysql", "--version"], capture_output=True, text=True)
+    except OSError:
+        return "mysql"
+    out = (p.stdout or "") + (p.stderr or "")
+    return "mariadb" if "mariadb" in out.lower() else "mysql"
 
 
 def create_database_and_user(
