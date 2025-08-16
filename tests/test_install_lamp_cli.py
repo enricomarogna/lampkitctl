@@ -23,7 +23,7 @@ def test_install_lamp_cli(monkeypatch):
     monkeypatch.setattr(system_ops, "run_command", fake_run)
     monkeypatch.setattr(system_ops.preflight_locks, "detect_lock", lambda: preflight_locks.LockInfo(False))
     runner = CliRunner()
-    result = runner.invoke(cli.cli, ["--dry-run", "install-lamp"])
+    result = runner.invoke(cli.cli, ["--dry-run", "install-lamp"], input="n\n")
     assert result.exit_code == 0
     install_cmd = calls[1]
     assert "mysql-server" in install_cmd

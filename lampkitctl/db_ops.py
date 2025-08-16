@@ -1,13 +1,59 @@
 """Database operations for lampkitctl."""
 from __future__ import annotations
-
 import logging
 import subprocess
 from typing import Optional
 
 from .utils import run_command
+import textwrap
 
 logger = logging.getLogger(__name__)
+
+
+class DBEngine:
+    MYSQL = "mysql"
+    MARIADB = "mariadb"
+
+
+def _exec_sql_as_root(sql: str, *, dry_run: bool = False) -> None:
+    """Execute ``sql`` as the local root user via socket."""
+
+    run_command(
+        ["bash", "-lc", "mysql --protocol=socket -u root"],
+        dry_run=dry_run,
+        input_text=sql,
+    )
+
+
+def set_root_password(
+    engine: str, password: str, plugin: str = "default", *, dry_run: bool = False
+) -> None:
+    """Set the database root password for ``engine``."""
+
+    if engine == DBEngine.MARIADB:
+        sql = textwrap.dedent(
+            f"""
+            ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('{password}');
+            FLUSH PRIVILEGES;
+            """
+        )
+        _exec_sql_as_root(sql, dry_run=dry_run)
+        return
+
+    auth = None
+    if plugin == "mysql_native_password":
+        auth = "mysql_native_password"
+    elif plugin == "caching_sha2_password":
+        auth = "caching_sha2_password"
+    if auth:
+        sql = (
+            f"ALTER USER 'root'@'localhost' IDENTIFIED WITH {auth} BY '{password}'; FLUSH PRIVILEGES;"
+        )
+    else:
+        sql = (
+            f"ALTER USER 'root'@'localhost' IDENTIFIED BY '{password}'; FLUSH PRIVILEGES;"
+        )
+    _exec_sql_as_root(sql, dry_run=dry_run)
 
 
 def detect_engine() -> str:

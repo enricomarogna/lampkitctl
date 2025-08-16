@@ -18,6 +18,7 @@ def test_menu_install_lamp_uses_sudo(monkeypatch):
     responses = iter(["Install LAMP server", "MySQL"])
     monkeypatch.setattr(menu, "_select", lambda message, choices: next(responses))
     monkeypatch.setattr(menu, "_confirm", lambda message, default=True: True)
+    monkeypatch.setattr(menu, "_password", lambda m: "pw")
 
     menu.run_menu(dry_run=False)
 
@@ -29,6 +30,8 @@ def test_menu_install_lamp_uses_sudo(monkeypatch):
         "mysql",
         "--wait-apt-lock",
         "120",
+        "--db-root-pass-env",
+        "LAMPKITCTL_MENU_DB_ROOT_PASS",
     ]
 
 

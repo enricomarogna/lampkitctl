@@ -230,6 +230,23 @@ sudo lampkitctl install-lamp --db-engine mariadb
 sudo lampkitctl install-lamp --db-engine auto --dry-run
 ```
 
+By default the installer prompts to set a **database root password**. For a
+non-interactive run supply the password via environment variable:
+
+```bash
+# interactive
+sudo "$(command -v lampkitctl)" install-lamp --db-engine auto
+
+# non-interactive
+export LAMPKITCTL_DB_ROOT_PASS='S3cure,Long,Unique!'
+sudo "$(command -v lampkitctl)" install-lamp --db-engine auto \
+     --db-root-pass-env LAMPKITCTL_DB_ROOT_PASS \
+     --db-root-plugin caching_sha2_password  # MySQL only, optional
+```
+
+> With MariaDB the installer switches root from socket-only to password
+> authentication.
+
 > **Note:** The install will abort if another apt/dpkg process holds the lock.
 > Wait for it to finish or close other package managers.
 

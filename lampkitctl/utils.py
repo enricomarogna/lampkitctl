@@ -89,6 +89,14 @@ def setup_logging(level: int = logging.INFO) -> None:
 
 logger = logging.getLogger(__name__)
 
+SECRET_PLACEHOLDER = "****"
+
+
+def mask_secret(s: str | None) -> str:
+    """Return ``SECRET_PLACEHOLDER`` when ``s`` is truthy."""
+
+    return SECRET_PLACEHOLDER if s else ""
+
 
 def run_command(
     cmd: List[str],
@@ -97,6 +105,7 @@ def run_command(
     log_cmd: Optional[Iterable[str]] = None,
     capture_output: bool = False,
     text: bool = True,
+    input_text: str | None = None,
     **kwargs,
 ) -> subprocess.CompletedProcess:
     """Execute a system command with logging and optional dry run.
@@ -129,6 +138,7 @@ def run_command(
             check=check,
             capture_output=capture_output,
             text=text,
+            input=input_text,
             **kwargs,
         )
     except subprocess.CalledProcessError as exc:
