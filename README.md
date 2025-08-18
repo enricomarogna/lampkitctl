@@ -222,6 +222,7 @@ warnings in **yellow**, and successes in **green**.
 
 ```bash
 lampkitctl install-launcher  # run once to enable sudo lampkitctl
+lampkitctl version          # verify CLI is working
 sudo lampkitctl menu
 ```
 
