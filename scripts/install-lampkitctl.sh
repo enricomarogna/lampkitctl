@@ -27,7 +27,7 @@ err()  { printf "%b%s%b\n" "$RED$BLD" "$*" "$RST"; }
 REPO_URL_HTTPS="https://github.com/enricomarogna/lampkitctl.git"
 REPO_URL_SSH="git@github.com:enricomarogna/lampkitctl.git"
 USE_SSH=0
-BRANCH="main"
+BRANCH="master"
 WITH_TUI=0
 INSTALL_LAUNCHER=1
 WAIT_APT=120
