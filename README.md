@@ -131,15 +131,15 @@ retrying.
 
 ```bash
 # HTTPS (recommended)
-curl -fsSL https://raw.githubusercontent.com/enricomarogna/lampkitctl/<BRANCH>/scripts/install-lampkitctl.sh | bash
+curl -fsSL https://raw.githubusercontent.com/enricomarogna/lampkitctl/master/scripts/install-lampkitctl.sh | bash
 
 # Or with sudo up-front (script will still run git/pip as your user):
-curl -fsSL https://raw.githubusercontent.com/enricomarogna/lampkitctl/<BRANCH>/scripts/install-lampkitctl.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/enricomarogna/lampkitctl/master/scripts/install-lampkitctl.sh | sudo bash
 ```
 
 **Options:**
 
-* `--branch <name>` – Git branch to checkout (default: `main`)
+* `--branch <name>` – Git branch to checkout (default: `master`)
 * `--dir <path>` – Install directory (default: `~/lampkitctl`)
 * `--with-tui` – Install optional extras `.[tui]`
 * `--no-launcher` – Skip installing `/usr/bin/lampkitctl`
