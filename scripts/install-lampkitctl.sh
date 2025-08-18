@@ -148,7 +148,7 @@ if [ "$INSTALL_LAUNCHER" -eq 1 ]; then
   note "Installing global launcher at $LAUNCHER"
   sudo tee "$LAUNCHER" >/dev/null <<LAUNCH
 #!/usr/bin/env bash
-exec "$DIR/.venv/bin/lampkitctl" "${1:+$@}"
+exec "$DIR/.venv/bin/lampkitctl" "\$@"
 LAUNCH
   sudo chmod +x "$LAUNCHER"
 fi
@@ -157,9 +157,12 @@ fi
 # Self-test
 # -----------------------------
 ok "Running self-test…"
-run_as_target "'$DIR/.venv/bin/lampkitctl' --version || true"
+run_as_target "'$DIR/.venv/bin/lampkitctl' version || true"
+run_as_target "'$DIR/.venv/bin/lampkitctl' --help >/dev/null || true"
+
 if command -v lampkitctl >/dev/null 2>&1; then
-  sudo lampkitctl --version || true
+  sudo lampkitctl version || true
+  sudo lampkitctl --help >/dev/null || true
 else
   warn "Global 'lampkitctl' not in PATH yet (no launcher?). You can run: $DIR/.venv/bin/lampkitctl"
 fi
