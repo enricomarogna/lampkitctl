@@ -66,7 +66,7 @@ It targets both advanced users—through granular commands—and less experience
   Issues and configures certificates for configured domains.
 
 * ✅ **List & remove sites**
-  Lists configured sites; controlled uninstall (with confirmations and optional DB removal). Shows `No sites found` when no vhosts are present.
+  Lists configured sites in a framed, colored output; controlled uninstall (with confirmations and optional DB removal) that never triggers LAMP installation. Shows a red `No sites found` when no vhosts are present.
 
 * ✅ **Dry-run mode**
   Simulates actions **without changing** the system.

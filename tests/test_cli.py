@@ -1,5 +1,5 @@
 from click.testing import CliRunner
-from lampkitctl import cli, packages, preflight, preflight_locks
+from lampkitctl import cli, packages, preflight, preflight_locks, utils
 
 
 def test_cli_install_lamp(monkeypatch) -> None:
@@ -132,11 +132,14 @@ def test_cli_list_sites(monkeypatch) -> None:
         cli.preflight, "apache_paths_present", lambda: cli.preflight.CheckResult(True, "")
     )
     monkeypatch.setattr(
-        cli.system_ops, "list_sites", lambda: [{"domain": "a", "doc_root": "/var/www/a"}]
+        cli.system_ops,
+        "list_sites",
+        lambda: [{"domain": "a.com", "doc_root": "/var/www/a"}],
     )
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["list-sites"])
-    assert "a -> /var/www/a" in result.output
+    assert utils.FRAME in result.output
+    assert "a.com  ->  /var/www/a" in result.output
 
 
 def test_cli_list_sites_empty(monkeypatch) -> None:
