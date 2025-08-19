@@ -234,6 +234,8 @@ domain or database details. If Apache, MySQL, or PHP are missing, the menu
 offers to run `install-lamp` and resumes site creation once the installation
 completes.
 
+In the menu, **Set WordPress permissions**, **Uninstall site**, and **Generate SSL certificate** now present a list of detected Apache vhosts to choose from. The tool reads `ServerName` and `DocumentRoot` from `/etc/apache2/sites-available/*.conf`.
+
 ### Install the LAMP stack
 
 ```bash

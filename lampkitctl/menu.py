@@ -9,7 +9,7 @@ import subprocess
 import sys
 from typing import Iterable, List, Optional
 
-from . import db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
+from . import apache_vhosts, db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
 from .utils import echo_error, echo_warn, echo_ok, echo_info, echo_title
 from .elevate import (
     build_sudo_cmd,
@@ -206,7 +206,10 @@ def generate_ssl(domain: str, dry_run: bool = False) -> None:
 
 def list_installed_sites() -> List[dict]:
     """Return installed sites from Apache configuration."""
-    return system_ops.list_sites()
+    return [
+        {"domain": v.domain, "doc_root": v.docroot or ""}
+        for v in apache_vhosts.list_vhosts()
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +250,34 @@ def _confirm(message: str, default: bool = False) -> bool:
     if inquirer:  # pragma: no cover
         return inquirer.confirm(message=message, default=default).execute()
     return utils.prompt_confirm(message, default=default)
+
+
+def _choose_site() -> apache_vhosts.VHost | str | None:
+    sites = apache_vhosts.list_vhosts()
+    if not sites:
+        echo_error("No sites found")
+        return None
+    choices = [
+        {
+            "name": f"{v.domain}  —  {v.docroot or '(no DocumentRoot)'}" + ("  [SSL]" if v.ssl else ""),
+            "value": v,
+        }
+        for v in sites
+    ]
+    choices.append({"name": "Custom...", "value": "custom"})
+    if inquirer:  # pragma: no cover
+        return inquirer.select(
+            message="Select a site",
+            choices=choices,
+            default=choices[0]["value"],
+        ).execute()
+    while True:
+        print("Select a site")
+        for idx, choice in enumerate(choices, 1):
+            print(f"{idx}) {choice['name']}")
+        resp = input("Select: ").strip()
+        if resp.isdigit() and 1 <= int(resp) <= len(choices):
+            return choices[int(resp) - 1]["value"]
 
 
 # ---------------------------------------------------------------------------
@@ -317,13 +348,17 @@ def _create_site_flow(dry_run: bool) -> None:
 
 
 def _uninstall_site_flow(dry_run: bool) -> None:
-    sites = list_installed_sites()
-    if not sites:
-        echo_error("No sites found")
+    vhost = _choose_site()
+    if not vhost:
         return
-    choices = [s["domain"] for s in sites]
-    domain = _select("Main > Uninstall site > Select domain", choices)
-    doc_root = next(s["doc_root"] for s in sites if s["domain"] == domain)
+    if vhost == "custom":
+        domain = _text("Main > Uninstall site > Domain")
+        if not domain:
+            return
+        doc_root = _text("Main > Uninstall site > Document root", default="")
+    else:
+        domain = vhost.domain
+        doc_root = vhost.docroot or ""
     db_name = _text("Main > Uninstall site > Database name")
     db_user = _text("Main > Uninstall site > Database user")
     if not _confirm(f"Remove site {domain}?", default=False):
@@ -363,19 +398,35 @@ def _wp_permissions_flow(dry_run: bool) -> None:
             else:
                 _wp_permissions_flow(dry_run=dry_run)
         return
-    doc_root = _text("Main > Set WordPress permissions > Path", default="")
-    if not doc_root:
+    vhost = _choose_site()
+    if not vhost:
         return
-    while True:
+    if vhost == "custom":
+        doc_root = _text("Main > Set WordPress permissions > Path", default="")
+        if not doc_root:
+            return
+        while True:
+            checks = [
+                preflight.path_exists(doc_root),
+                preflight.is_wordpress_dir(doc_root),
+            ]
+            if all(c.ok for c in checks):
+                break
+            echo_error(preflight.summarize([c for c in checks if not c.ok]))
+            doc_root = _text("Main > Set WordPress permissions > Path", default="")
+            if not doc_root:
+                return
+    else:
+        doc_root = vhost.docroot
+        if not doc_root:
+            echo_error("Selected vhost has no DocumentRoot")
+            return
         checks = [
             preflight.path_exists(doc_root),
             preflight.is_wordpress_dir(doc_root),
         ]
-        if all(c.ok for c in checks):
-            break
-        echo_error(preflight.summarize([c for c in checks if not c.ok]))
-        doc_root = _text("Main > Set WordPress permissions > Path", default="")
-        if not doc_root:
+        if not all(c.ok for c in checks):
+            echo_error(preflight.summarize([c for c in checks if not c.ok]))
             return
     rc = _run_cli(["wp-permissions", doc_root], dry_run=dry_run)
     if rc != 0 and _confirm("Run install-lamp now?", default=True):
@@ -384,12 +435,19 @@ def _wp_permissions_flow(dry_run: bool) -> None:
 
 
 def _generate_ssl_flow(dry_run: bool) -> None:
-    sites = list_installed_sites()
-    if not sites:
-        echo_error("No domains available")
+    vhost = _choose_site()
+    if not vhost:
         return
-    choices = [s["domain"] for s in sites]
-    domain = _select("Main > Generate SSL certificate > Select domain", choices)
+    if vhost == "custom":
+        domain = _text("Main > Generate SSL certificate > Domain")
+        if not domain:
+            return
+    else:
+        domain = vhost.domain
+        if vhost.ssl:
+            echo_warn("SSL appears configured for this site")
+            if not _confirm("Re-issue certificate?", default=False):
+                return
     try:
         preflight.ensure_or_fail(
             preflight.checks_for("generate-ssl", domain=domain)
