@@ -91,6 +91,31 @@ def validate_db_identifier(name: str) -> str:
     return name
 
 
+def _list_dbs_interactive() -> list[str] | None:
+    """List databases, prompting for root password if required."""
+    try:
+        return db_introspect.list_databases().databases
+    except subprocess.CalledProcessError as exc:
+        if db_introspect.is_access_denied(exc, getattr(exc, "output", None)):
+            if inquirer:  # pragma: no cover - optional dependency
+                pwd = inquirer.secret(message="Database root password:").execute()
+            else:
+                pwd = getpass.getpass("Database root password: ")
+            if not pwd:
+                return None
+            db_introspect._CACHED_ROOT_PASSWORD = pwd
+            try:
+                return db_introspect.list_databases(password=pwd).databases
+            except subprocess.CalledProcessError:
+                echo_error("Failed to list databases even after providing password.")
+                return None
+        echo_error("Failed to list databases.")
+        return None
+    except Exception as exc:  # pragma: no cover - unexpected
+        echo_error(f"Failed to list databases: {exc}")
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Core actions (testable)
 # ---------------------------------------------------------------------------
@@ -290,10 +315,9 @@ def _choose_site() -> apache_vhosts.VHost | str | None:
 
 
 def _choose_database(doc_root: str | None) -> str:
-    try:
-        dblist = db_introspect.list_databases().databases
-    except Exception as exc:
-        echo_error(f"Failed to list databases: {exc}")
+    dblist = _list_dbs_interactive()
+    if dblist is None:
+        echo_warn("Falling back to manual database entry")
         return _text("Main > Uninstall site > Database name")
     preselect = None
     if doc_root:
