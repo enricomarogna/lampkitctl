@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 import click
+from shutil import get_terminal_size
 
 try:  # pragma: no cover - optional dependency
     from InquirerPy import inquirer
@@ -295,20 +296,47 @@ def is_non_interactive() -> bool:
     return not sys.stdin.isatty()
 
 
-FRAME = "#" * 33
+def _format_site_line(domain: str, docroot: str) -> str:
+    return f"{domain}  ->  {docroot}"
 
 
-def render_sites_list(sites: list[tuple[str, str]]) -> None:
+_DEF_EMPTY = "No sites found"
+
+
+def render_sites_list(sites: list[tuple[str, str]], *, color: bool = True) -> None:
     """Render a list of sites with framing and color.
 
     Args:
         sites: List of ``(domain, docroot)`` tuples.
+        color: If ``True`` use colored output.
     """
 
     if not sites:
-        click.secho("No sites found", fg="red", bold=True)
+        msg = _DEF_EMPTY
+        if color:
+            click.secho(msg, fg="red", bold=True)
+        else:
+            click.echo(msg)
         return
-    for domain, docroot in sites:
-        click.secho(FRAME, fg="green")
-        click.secho(f"{domain}  ->  {docroot}", fg="green", bold=True)
-        click.secho(FRAME, fg="green")
+
+    lines = [_format_site_line(d, r) for d, r in sites]
+    max_len = max(len(s) for s in lines)
+
+    term_w = get_terminal_size((80, 20)).columns
+    frame_len = max_len
+    if frame_len > term_w:
+        frame_len = term_w
+    frame = "-" * frame_len
+
+    def out(s: str, *, bold: bool = False) -> None:
+        if color:
+            click.secho(s, fg="green", bold=bold)
+        else:
+            click.echo(s)
+
+    click.echo()
+    out(frame)
+    for s in lines:
+        out(s, bold=True)
+    out(frame)
+    click.echo()

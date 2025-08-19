@@ -138,8 +138,12 @@ def test_cli_list_sites(monkeypatch) -> None:
     )
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["list-sites"])
-    assert utils.FRAME in result.output
-    assert "a.com  ->  /var/www/a" in result.output
+    expected_line = "a.com  ->  /var/www/a"
+    expected_frame = "-" * len(expected_line)
+    lines = result.output.splitlines()
+    assert lines[1] == expected_frame
+    assert lines[-2] == expected_frame
+    assert expected_line in result.output
 
 
 def test_cli_list_sites_empty(monkeypatch) -> None:
