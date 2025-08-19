@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from pathlib import Path
 
-from .utils import run_command
+from .utils import run_command, echo_warn, echo_error
 
 logger = logging.getLogger(__name__)
 
@@ -13,27 +15,29 @@ WORDPRESS_URL = "https://wordpress.org/latest.tar.gz"
 
 
 def download_wordpress(target_dir: str, dry_run: bool = False) -> None:
-    """Download and extract the latest WordPress package.
+    """Download and extract the latest WordPress package into ``target_dir``.
 
-    Args:
-        target_dir (str): Directory where WordPress should be downloaded and
-            extracted.
-        dry_run (bool, optional): If ``True`` the commands are logged but not
-            executed. Defaults to ``False``.
-
-    Returns:
-        None: This function does not return a value.
-
-    Raises:
-        subprocess.CalledProcessError: If a command fails and ``dry_run`` is
-            ``False``.
-
-    Example:
-        >>> download_wordpress("/var/www", dry_run=True)
+    The archive is fetched to a temporary location and extracted with
+    ``--strip-components=1`` so that files land directly in ``target_dir``.
+    The temporary archive is removed afterwards.
     """
-    tar_path = str(Path(target_dir) / "wordpress.tar.gz")
-    run_command(["wget", "-q", WORDPRESS_URL, "-O", tar_path], dry_run)
-    run_command(["tar", "-xzf", tar_path, "-C", target_dir], dry_run)
+
+    tar_path = Path(tempfile.gettempdir()) / f"wordpress-{os.getpid()}.tar.gz"
+    run_command(["wget", "-q", WORDPRESS_URL, "-O", str(tar_path)], dry_run)
+    run_command(
+        [
+            "tar",
+            "-xzf",
+            str(tar_path),
+            "-C",
+            target_dir,
+            "--strip-components=1",
+            "--no-same-owner",
+            "--overwrite-dir",
+        ],
+        dry_run,
+    )
+    run_command(["rm", "-f", str(tar_path)], dry_run)
 
 
 def install_wordpress(
@@ -43,39 +47,29 @@ def install_wordpress(
     db_password: str,
     dry_run: bool = False,
 ) -> None:
-    """Install WordPress into ``doc_root`` and configure the database.
+    """Install WordPress into ``doc_root`` and configure the database."""
 
-    Args:
-        doc_root (str): Target directory for the WordPress installation.
-        db_name (str): Name of the MySQL database.
-        db_user (str): Database username.
-        db_password (str): Database user password.
-        dry_run (bool, optional): If ``True`` the commands are logged but not
-            executed. Defaults to ``False``.
-
-    Returns:
-        None: This function does not return a value.
-
-    Raises:
-        OSError: If configuration files cannot be read or written and
-            ``dry_run`` is ``False``.
-
-    Example:
-        >>> install_wordpress("/var/www", "db", "user", "pw", dry_run=True)
-    """
-    download_wordpress(doc_root, dry_run)
-    sample = Path(doc_root) / "wordpress" / "wp-config-sample.php"
-    config = Path(doc_root) / "wordpress" / "wp-config.php"
-    if dry_run:
-        logger.info("configure_wp", extra={"path": str(config)})
-        return
-    text = sample.read_text()
-    text = (
-        text.replace("database_name_here", db_name)
-        .replace("username_here", db_user)
-        .replace("password_here", db_password)
-    )
-    config.write_text(text)
+    config = Path(doc_root) / "wp-config.php"
+    if config.exists():
+        echo_warn("WordPress appears to be installed; skipping files extraction.")
+    else:
+        try:
+            download_wordpress(doc_root, dry_run)
+        except SystemExit:
+            echo_error("Failed to download or extract WordPress. Aborting.")
+            raise
+        sample = Path(doc_root) / "wp-config-sample.php"
+        if dry_run:
+            logger.info("configure_wp", extra={"path": str(config)})
+        else:
+            text = sample.read_text()
+            text = (
+                text.replace("database_name_here", db_name)
+                .replace("username_here", db_user)
+                .replace("password_here", db_password)
+            )
+            config.write_text(text)
+    set_permissions(doc_root, dry_run=dry_run)
 
 
 def set_permissions(doc_root: str, owner: str = "www-data", dry_run: bool = False) -> None:
