@@ -66,13 +66,15 @@ It targets both advanced users—through granular commands—and less experience
   Issues and configures certificates for configured domains.
 
 * ✅ **List & remove sites**
-  Lists configured sites; controlled uninstall (with confirmations and optional DB removal).
+  Lists configured sites; controlled uninstall (with confirmations and optional DB removal). Shows `No sites found` when no vhosts are present.
 
 * ✅ **Dry-run mode**
   Simulates actions **without changing** the system.
 
 * ✅ **Structured logging**
   Clear runtime messages and optional JSON logging for CI/log pipelines.
+* ✅ **One-time credential prompts**
+  Database root and sudo passwords are requested at most once per TUI session and reused silently.
 
 > **Note:** An **interactive menu (TUI)** will be available as an optional entrypoint (see [Roadmap](#roadmap)).
 

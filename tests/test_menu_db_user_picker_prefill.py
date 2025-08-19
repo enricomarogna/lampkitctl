@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from lampkitctl import menu, db_introspect
+from types import SimpleNamespace
 
 
 def test_db_user_picker_prefills_from_wp_config(monkeypatch) -> None:

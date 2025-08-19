@@ -1,9 +1,10 @@
 from types import SimpleNamespace
-from lampkitctl import menu, db_introspect
+from lampkitctl import menu, db_introspect, auth_cache
 
 
 def test_db_list_auth_flow(monkeypatch):
     monkeypatch.setattr(menu.db_introspect, "parse_wp_config", lambda path: None)
+    auth_cache.clear()
 
     calls = []
 
@@ -14,7 +15,6 @@ def test_db_list_auth_flow(monkeypatch):
         raise db_introspect.DBListError("fail")
 
     monkeypatch.setattr(menu.dbi, "list_databases", fake_list)
-    monkeypatch.setattr(menu.dbi, "cache_root_password", lambda pw: None)
 
     secrets = []
 

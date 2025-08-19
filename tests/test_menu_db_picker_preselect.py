@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from lampkitctl import menu, apache_vhosts, db_introspect
+from types import SimpleNamespace
 
 
 def make_vhost(domain, docroot):

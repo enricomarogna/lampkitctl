@@ -6,9 +6,9 @@ import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
-SYSTEM_SCHEMAS = {"information_schema", "mysql", "performance_schema", "sys"}
+from . import auth_cache
 
-_CACHED_ROOT_PASSWORD: Optional[str] = None
+SYSTEM_SCHEMAS = {"information_schema", "mysql", "performance_schema", "sys"}
 
 
 class DBListError(RuntimeError):
@@ -17,7 +17,7 @@ class DBListError(RuntimeError):
 
 def _env_with_pwd(pwd: Optional[str]) -> dict:
     env = os.environ.copy()
-    p = pwd or env.get("LAMPKITCTL_DB_ROOT_PASS") or _CACHED_ROOT_PASSWORD
+    p = pwd or env.get("LAMPKITCTL_DB_ROOT_PASS") or auth_cache.get_db_root_password()
     if p:
         env["MYSQL_PWD"] = p
     return env
@@ -77,8 +77,8 @@ def _parse_names(output: str) -> list[str]:
 
 
 def cache_root_password(pwd: str) -> None:
-    global _CACHED_ROOT_PASSWORD
-    _CACHED_ROOT_PASSWORD = pwd
+    """Backward-compatible setter for DB root password cache."""
+    auth_cache.set_db_root_password(pwd)
 
 
 def list_databases(password: Optional[str] = None) -> list[str]:

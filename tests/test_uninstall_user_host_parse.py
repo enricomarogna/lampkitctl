@@ -4,7 +4,7 @@ from lampkitctl import db_ops
 def test_drop_database_and_user_host_parse(monkeypatch) -> None:
     sqls: list[str] = []
 
-    def fake_run(cmd, dry_run, log_cmd=None):
+    def fake_run(cmd, dry_run, log_cmd=None, env=None):
         sqls.append(cmd[-1])
 
     monkeypatch.setattr(db_ops, "run_command", fake_run)

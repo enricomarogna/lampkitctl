@@ -1,8 +1,8 @@
-from lampkitctl import db_introspect
+from lampkitctl import db_introspect, auth_cache
 
 
 def test_db_list_env_var(monkeypatch):
-    db_introspect._CACHED_ROOT_PASSWORD = None
+    auth_cache.clear()
     monkeypatch.setenv("LAMPKITCTL_DB_ROOT_PASS", "pw")
     env_calls = []
 
