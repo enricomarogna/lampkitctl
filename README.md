@@ -238,6 +238,15 @@ In the menu, **Set WordPress permissions**, **Uninstall site**, and **Generate S
 
 When uninstalling a site, the menu now presents a **database picker** listing local MySQL/MariaDB databases. If the selected site is a WordPress install and `wp-config.php` declares a database that exists on the server, that database is **pre-selected**.
 
+**Database picker**: If your local MySQL/MariaDB root requires a password, the TUI will prompt for it (masked) and retry the listing. For non-interactive use, set an environment variable before launching the menu:
+
+```bash
+export LAMPKITCTL_DB_ROOT_PASS='your-root-password'
+lampkitctl menu
+```
+
+The password is not logged and is not stored on disk. It is kept in memory for the session only.
+
 ### Install the LAMP stack
 
 ```bash
