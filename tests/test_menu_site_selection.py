@@ -32,7 +32,7 @@ def test_uninstall_site_uses_selected_domain(monkeypatch):
     monkeypatch.setattr(
         menu, "_db_user_picker_with_fallbacks", lambda doc_root: "dbuser"
     )
-    monkeypatch.setattr(menu, "_confirm", lambda *a, **k: True)
+    monkeypatch.setattr(menu, "ask_confirm", lambda *a, **k: True)
     calls = []
     monkeypatch.setattr(menu, "_run_cli", lambda args, dry_run=False: calls.append(args) or 0)
     menu._uninstall_site_flow(dry_run=False)

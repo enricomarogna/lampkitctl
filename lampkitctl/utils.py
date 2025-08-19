@@ -11,6 +11,11 @@ from typing import Iterable, List, Optional
 
 import click
 
+try:  # pragma: no cover - optional dependency
+    from InquirerPy import inquirer
+except Exception:  # pragma: no cover - gracefully handle absence
+    inquirer = None
+
 
 class JsonFormatter(logging.Formatter):
     """Format log records as JSON strings.
@@ -245,6 +250,18 @@ def prompt_yes_no(message: str, default: bool = False) -> bool:
     return prompt_confirm(message, default=default)
 
 
+def ask_confirm(msg: str, default: bool = False) -> bool:
+    """Prompt the user for confirmation returning a boolean.
+
+    This helper centralizes confirmation prompts using ``InquirerPy`` when
+    available and falling back to :func:`prompt_confirm` otherwise.
+    """
+
+    if inquirer:  # pragma: no cover - optional dependency
+        return bool(inquirer.confirm(message=msg, default=default).execute())
+    return prompt_confirm(msg, default=default)
+
+
 def echo_err(message: str) -> None:
     """Print ``message`` to standard error."""
 
@@ -276,3 +293,22 @@ def is_non_interactive() -> bool:
     """Return ``True`` if stdin is not attached to a TTY."""
 
     return not sys.stdin.isatty()
+
+
+FRAME = "#" * 33
+
+
+def render_sites_list(sites: list[tuple[str, str]]) -> None:
+    """Render a list of sites with framing and color.
+
+    Args:
+        sites: List of ``(domain, docroot)`` tuples.
+    """
+
+    if not sites:
+        click.secho("No sites found", fg="red", bold=True)
+        return
+    for domain, docroot in sites:
+        click.secho(FRAME, fg="green")
+        click.secho(f"{domain}  ->  {docroot}", fg="green", bold=True)
+        click.secho(FRAME, fg="green")

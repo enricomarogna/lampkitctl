@@ -20,7 +20,15 @@ from . import (
     wp_ops,
     db_introspect,
 )
-from .utils import echo_error, echo_warn, echo_ok, echo_info, echo_title
+from .utils import (
+    echo_error,
+    echo_warn,
+    echo_ok,
+    echo_info,
+    echo_title,
+    ask_confirm,
+    render_sites_list,
+)
 from .elevate import (
     build_sudo_cmd,
     maybe_reexec_with_sudo,
@@ -563,9 +571,9 @@ def _uninstall_site_flow(dry_run: bool) -> None:
     db_user = _db_user_picker_with_fallbacks(doc_root)
     if not db_user:
         return
-    if not _confirm(f"Remove site {domain}?", default=False):
+    if not ask_confirm(f"Remove site {domain}?", default=False):
         return
-    if not _confirm("This action is destructive. Continue?", default=False):
+    if not ask_confirm("This action is destructive. Continue?", default=False):
         return
     args = [
         "uninstall-site",
@@ -578,9 +586,8 @@ def _uninstall_site_flow(dry_run: bool) -> None:
         db_user,
     ]
     rc = _run_cli(args, dry_run=dry_run)
-    if rc != 0 and _confirm("Run install-lamp now?", default=True):
-        if _run_cli(["install-lamp"], dry_run=dry_run) == 0:
-            _run_cli(args, dry_run=dry_run)
+    if rc != 0:
+        echo_warn("Uninstall encountered errors. Some components may remain.")
 
 
 def _wp_permissions_flow(dry_run: bool) -> None:
@@ -663,11 +670,7 @@ def _generate_ssl_flow(dry_run: bool) -> None:
 
 def _list_sites_flow() -> None:
     sites = list_installed_sites()
-    if not sites:
-        echo_error("No sites found")
-        return
-    for site in sites:
-        print(f"{site['domain']} -> {site['doc_root']}")
+    render_sites_list([(s["domain"], s["doc_root"]) for s in sites])
 
 
 # ---------------------------------------------------------------------------
