@@ -236,6 +236,8 @@ completes.
 
 In the menu, **Set WordPress permissions**, **Uninstall site**, and **Generate SSL certificate** now present a list of detected Apache vhosts to choose from. The tool reads `ServerName` and `DocumentRoot` from `/etc/apache2/sites-available/*.conf`.
 
+When uninstalling a site, the menu now presents a **database picker** listing local MySQL/MariaDB databases. If the selected site is a WordPress install and `wp-config.php` declares a database that exists on the server, that database is **pre-selected**.
+
 ### Install the LAMP stack
 
 ```bash

@@ -9,7 +9,16 @@ import subprocess
 import sys
 from typing import Iterable, List, Optional
 
-from . import apache_vhosts, db_ops, preflight, preflight_locks, system_ops, utils, wp_ops
+from . import (
+    apache_vhosts,
+    db_ops,
+    preflight,
+    preflight_locks,
+    system_ops,
+    utils,
+    wp_ops,
+    db_introspect,
+)
 from .utils import echo_error, echo_warn, echo_ok, echo_info, echo_title
 from .elevate import (
     build_sudo_cmd,
@@ -280,6 +289,51 @@ def _choose_site() -> apache_vhosts.VHost | str | None:
             return choices[int(resp) - 1]["value"]
 
 
+def _choose_database(doc_root: str | None) -> str:
+    try:
+        dblist = db_introspect.list_databases().databases
+    except Exception as exc:
+        echo_error(f"Failed to list databases: {exc}")
+        return _text("Main > Uninstall site > Database name")
+    preselect = None
+    if doc_root:
+        cfg = db_introspect.parse_wp_config(doc_root)
+        if cfg and cfg.name:
+            if cfg.name in dblist:
+                preselect = cfg.name
+            else:
+                echo_warn(f"DB from wp-config.php not found on server: {cfg.name}")
+    choices = [{"name": db, "value": db} for db in dblist]
+    if preselect and preselect in dblist:
+        default_value = preselect
+    else:
+        default_value = dblist[0] if dblist else None
+    choices.append({"name": "Custom...", "value": "__CUSTOM__"})
+    if inquirer and dblist:  # pragma: no cover - optional path
+        selected = inquirer.select(
+            message="Select database",
+            choices=choices,
+            default=default_value,
+        ).execute()
+    else:
+        if not dblist:
+            return _text("Main > Uninstall site > Database name")
+        while True:
+            print("Select database")
+            for idx, choice in enumerate(choices, 1):
+                print(f"{idx}) {choice['name']}")
+            resp = input("Select: ").strip()
+            if resp.isdigit() and 1 <= int(resp) <= len(choices):
+                selected = choices[int(resp) - 1]["value"]
+                break
+    if selected == "__CUSTOM__":
+        if inquirer:  # pragma: no cover
+            selected = inquirer.text(message="Enter database name:").execute()
+        else:
+            selected = _text("Enter database name:")
+    return selected
+
+
 # ---------------------------------------------------------------------------
 # Interactive flows
 # ---------------------------------------------------------------------------
@@ -359,7 +413,7 @@ def _uninstall_site_flow(dry_run: bool) -> None:
     else:
         domain = vhost.domain
         doc_root = vhost.docroot or ""
-    db_name = _text("Main > Uninstall site > Database name")
+    db_name = _choose_database(doc_root)
     db_user = _text("Main > Uninstall site > Database user")
     if not _confirm(f"Remove site {domain}?", default=False):
         return
