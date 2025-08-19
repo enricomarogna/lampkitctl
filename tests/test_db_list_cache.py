@@ -13,5 +13,5 @@ def test_cache_root_password(monkeypatch):
     monkeypatch.setattr(db_introspect.subprocess, "check_output", fake_check_output)
 
     dblist = db_introspect.list_databases()
-    assert dblist.databases == ["db1"]
+    assert dblist == ["db1"]
     assert seen == ["secret"]

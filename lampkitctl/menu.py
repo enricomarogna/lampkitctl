@@ -28,6 +28,9 @@ from .elevate import (
 
 logger = logging.getLogger(__name__)
 
+dbi = db_introspect
+_warn = echo_warn
+
 try:  # pragma: no cover - optional dependency
     from InquirerPy import inquirer
 except Exception:  # pragma: no cover - handled gracefully
@@ -89,33 +92,6 @@ def validate_db_identifier(name: str) -> str:
     if not re.match(r"^[A-Za-z0-9_]+$", name):
         raise ValueError("Invalid database identifier")
     return name
-
-
-def _list_dbs_interactive() -> list[str] | None:
-    """List databases, prompting for root password if required."""
-    try:
-        return db_introspect.list_databases().databases
-    except Exception:
-        pass
-
-    if inquirer:  # pragma: no cover - optional dependency
-        pwd = inquirer.secret(message="Database root password:").execute()
-    else:  # pragma: no cover - no InquirerPy
-        pwd = getpass.getpass("Database root password: ")
-    if not pwd:
-        return None
-    db_introspect.cache_root_password(pwd)
-
-    try:
-        return db_introspect.list_databases(password=pwd).databases
-    except Exception:
-        try:
-            return db_introspect.list_databases().databases
-        except Exception:
-            echo_error(
-                "Failed to list databases even after providing password.\nFalling back to manual database entry"
-            )
-            return None
 
 
 # ---------------------------------------------------------------------------
@@ -316,34 +292,74 @@ def _choose_site() -> apache_vhosts.VHost | str | None:
             return choices[int(resp) - 1]["value"]
 
 
-def _choose_database(doc_root: str | None) -> str:
-    dblist = _list_dbs_interactive()
-    if dblist is None:
-        echo_warn("Falling back to manual database entry")
-        return _text("Main > Uninstall site > Database name")
+_DEF_WARN_MANUAL = "Falling back to manual database entry"
+
+
+def _db_picker_with_fallbacks(docroot: str) -> str | None:
+    # 1) Try without explicit password (env/cache)
+    try:
+        dbs = dbi.list_databases()
+    except Exception:
+        dbs = None
+
+    # 2) If failed, ask for DB root password once and retry
+    if not dbs:
+        if inquirer:  # pragma: no cover - optional dependency
+            pwd = inquirer.secret(message="Database root password:").execute()
+        else:  # pragma: no cover - no InquirerPy
+            pwd = getpass.getpass("Database root password: ")
+        if pwd:
+            dbi.cache_root_password(pwd)
+            try:
+                dbs = dbi.list_databases(password=pwd)
+            except Exception:
+                dbs = None
+
+    # 3) If still failing, prompt for sudo password and try sudo fallbacks
+    if not dbs:
+        if inquirer:  # pragma: no cover - optional dependency
+            spwd = inquirer.secret(
+                message="Sudo password (to enumerate databases):"
+            ).execute()
+        else:  # pragma: no cover - no InquirerPy
+            spwd = getpass.getpass("Sudo password (to enumerate databases): ")
+        if spwd:
+            try:
+                dbs = dbi.list_databases_with_sudo(spwd)
+            except Exception:
+                dbs = None
+
+    # 4) Build choices or manual fallback
+    # Try to prefill from wp-config.php
     preselect = None
-    if doc_root:
-        cfg = db_introspect.parse_wp_config(doc_root)
-        if cfg and cfg.name:
-            if cfg.name in dblist:
-                preselect = cfg.name
-            else:
-                echo_warn(f"DB from wp-config.php not found on server: {cfg.name}")
-    choices = [{"name": db, "value": db} for db in dblist]
-    if preselect and preselect in dblist:
-        default_value = preselect
+    cfg = db_introspect.parse_wp_config(docroot)
+    if cfg and cfg.name:
+        preselect = cfg.name
+
+    if not dbs:
+        if preselect:
+            note = (
+                f"Could not list databases. Using DB from wp-config.php: {preselect}"
+            )
+            _warn(note)
+            return preselect
+        _warn(_DEF_WARN_MANUAL)
+        if inquirer:  # pragma: no cover - optional dependency
+            return inquirer.text(message="Database name").execute()
+        return _text("Database name")
+
+    choices = [{"name": x, "value": x} for x in dbs]
+    if preselect and preselect in set(dbs):
+        default = preselect
     else:
-        default_value = dblist[0] if dblist else None
-    choices.append({"name": "Custom...", "value": "__CUSTOM__"})
-    if inquirer and dblist:  # pragma: no cover - optional path
+        default = choices[0]["value"] if choices else None
+    choices.append({"name": "Custom…", "value": "__CUSTOM__"})
+
+    if inquirer:  # pragma: no cover - optional dependency
         selected = inquirer.select(
-            message="Select database",
-            choices=choices,
-            default=default_value,
+            message="Select database", choices=choices, default=default
         ).execute()
-    else:
-        if not dblist:
-            return _text("Main > Uninstall site > Database name")
+    else:  # pragma: no cover - no InquirerPy
         while True:
             print("Select database")
             for idx, choice in enumerate(choices, 1):
@@ -352,11 +368,11 @@ def _choose_database(doc_root: str | None) -> str:
             if resp.isdigit() and 1 <= int(resp) <= len(choices):
                 selected = choices[int(resp) - 1]["value"]
                 break
+
     if selected == "__CUSTOM__":
-        if inquirer:  # pragma: no cover
-            selected = inquirer.text(message="Enter database name:").execute()
-        else:
-            selected = _text("Enter database name:")
+        if inquirer:  # pragma: no cover - optional dependency
+            return inquirer.text(message="Database name").execute()
+        return _text("Database name")
     return selected
 
 
@@ -439,7 +455,9 @@ def _uninstall_site_flow(dry_run: bool) -> None:
     else:
         domain = vhost.domain
         doc_root = vhost.docroot or ""
-    db_name = _choose_database(doc_root)
+    db_name = _db_picker_with_fallbacks(doc_root)
+    if not db_name:
+        return
     db_user = _text("Main > Uninstall site > Database user")
     if not _confirm(f"Remove site {domain}?", default=False):
         return

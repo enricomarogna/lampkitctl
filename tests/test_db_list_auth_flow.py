@@ -1,19 +1,20 @@
 from types import SimpleNamespace
-import subprocess
 from lampkitctl import menu, db_introspect
 
 
 def test_db_list_auth_flow(monkeypatch):
-    db_introspect._CACHED_ROOT_PASSWORD = None
-    env_calls = []
+    monkeypatch.setattr(menu.db_introspect, "parse_wp_config", lambda path: None)
 
-    def fake_check_output(cmd, env=None, text=None, stderr=None):
-        env_calls.append(env.get("MYSQL_PWD") if env else None)
-        if env and env.get("MYSQL_PWD") == "pw":
-            return "alpha\nbeta\n"
-        raise subprocess.CalledProcessError(1, cmd, output="ERROR")
+    calls = []
 
-    monkeypatch.setattr(db_introspect.subprocess, "check_output", fake_check_output)
+    def fake_list(password: str | None = None):
+        calls.append(password)
+        if password == "pw":
+            return ["alpha", "beta"]
+        raise db_introspect.DBListError("fail")
+
+    monkeypatch.setattr(menu.dbi, "list_databases", fake_list)
+    monkeypatch.setattr(menu.dbi, "cache_root_password", lambda pw: None)
 
     secrets = []
 
@@ -26,9 +27,16 @@ def test_db_list_auth_flow(monkeypatch):
 
         return R()
 
-    menu.inquirer = SimpleNamespace(secret=fake_secret)
+    def fake_select(message=None, choices=None, default=None):
+        class R:
+            def execute(self):
+                return choices[0]["value"]
 
-    dblist = menu._list_dbs_interactive()
-    assert dblist == ["alpha", "beta"]
+        return R()
+
+    menu.inquirer = SimpleNamespace(secret=fake_secret, select=fake_select, text=lambda **k: None)
+
+    dblist = menu._db_picker_with_fallbacks("/tmp")
+    assert dblist == "alpha"
     assert secrets == ["Database root password:"]
-    assert env_calls == [None, None, None, None, "pw"]
+    assert calls == [None, "pw"]
