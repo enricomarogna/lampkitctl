@@ -292,6 +292,8 @@ sudo "$(command -v lampkitctl)" create-site example.local \
 > If you omit options, the CLI may prompt for required values.
 > Use `--dry-run` to preview actions without changing the system.
 
+When `--with-wordpress` is enabled, WordPress files are extracted **directly into the document root** (no nested `wordpress/` folder). The downloaded archive is deleted after extraction.
+
 ### Issue an SSL certificate (Certbot)
 
 ```bash
