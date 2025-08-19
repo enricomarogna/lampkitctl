@@ -129,12 +129,13 @@ def drop_database_and_user(
 ) -> None:
     """Remove a MySQL database and its user.
 
-    The database is dropped if it exists and the associated user is removed
-    along with its privileges.
+    ``user`` may include an optional host (``user@host``). When no host is
+    provided, ``localhost`` is assumed. The database is dropped if it exists
+    and the associated user is removed along with its privileges.
 
     Args:
         db_name (str): Name of the database to drop.
-        user (str): Username to remove.
+        user (str): Username to remove, optionally with host.
         root_user (str, optional): MySQL root username used to execute the
             SQL commands. Defaults to "root".
         root_password (Optional[str], optional): Password for ``root_user``.
@@ -152,9 +153,13 @@ def drop_database_and_user(
     Example:
         >>> drop_database_and_user("blog", "blog_user", dry_run=True)
     """
+    if "@" in user:
+        user_name, host = user.split("@", 1)
+    else:
+        user_name, host = user, "localhost"
     sql = (
         f"DROP DATABASE IF EXISTS `{db_name}`;"
-        f" DROP USER IF EXISTS '{user}'@'localhost';"
+        f" DROP USER IF EXISTS '{user_name}'@'{host}';"
         " FLUSH PRIVILEGES;"
     )
     cmd = ["mysql", "-u", root_user]
