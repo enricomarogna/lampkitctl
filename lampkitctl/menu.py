@@ -95,25 +95,27 @@ def _list_dbs_interactive() -> list[str] | None:
     """List databases, prompting for root password if required."""
     try:
         return db_introspect.list_databases().databases
-    except subprocess.CalledProcessError as exc:
-        if db_introspect.is_access_denied(exc, getattr(exc, "output", None)):
-            if inquirer:  # pragma: no cover - optional dependency
-                pwd = inquirer.secret(message="Database root password:").execute()
-            else:
-                pwd = getpass.getpass("Database root password: ")
-            if not pwd:
-                return None
-            db_introspect._CACHED_ROOT_PASSWORD = pwd
-            try:
-                return db_introspect.list_databases(password=pwd).databases
-            except subprocess.CalledProcessError:
-                echo_error("Failed to list databases even after providing password.")
-                return None
-        echo_error("Failed to list databases.")
+    except Exception:
+        pass
+
+    if inquirer:  # pragma: no cover - optional dependency
+        pwd = inquirer.secret(message="Database root password:").execute()
+    else:  # pragma: no cover - no InquirerPy
+        pwd = getpass.getpass("Database root password: ")
+    if not pwd:
         return None
-    except Exception as exc:  # pragma: no cover - unexpected
-        echo_error(f"Failed to list databases: {exc}")
-        return None
+    db_introspect.cache_root_password(pwd)
+
+    try:
+        return db_introspect.list_databases(password=pwd).databases
+    except Exception:
+        try:
+            return db_introspect.list_databases().databases
+        except Exception:
+            echo_error(
+                "Failed to list databases even after providing password.\nFalling back to manual database entry"
+            )
+            return None
 
 
 # ---------------------------------------------------------------------------
