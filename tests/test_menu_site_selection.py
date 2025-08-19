@@ -28,7 +28,7 @@ def test_uninstall_site_uses_selected_domain(monkeypatch):
     monkeypatch.setattr(menu, "inquirer", None)
     inputs = iter(["1"])  # select first site
     monkeypatch.setattr(menu, "input", lambda _: next(inputs), raising=False)
-    monkeypatch.setattr(menu, "_choose_database", lambda doc_root: "dbname")
+    monkeypatch.setattr(menu, "_db_picker_with_fallbacks", lambda doc_root: "dbname")
     texts = iter(["dbuser"])
     monkeypatch.setattr(menu, "_text", lambda *a, **k: next(texts))
     monkeypatch.setattr(menu, "_confirm", lambda *a, **k: True)

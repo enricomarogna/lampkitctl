@@ -238,7 +238,7 @@ In the menu, **Set WordPress permissions**, **Uninstall site**, and **Generate S
 
 When uninstalling a site, the menu now presents a **database picker** listing local MySQL/MariaDB databases. If the selected site is a WordPress install and `wp-config.php` declares a database that exists on the server, that database is **pre-selected**.
 
-**Database picker**: The menu automatically tries multiple strategies to list databases: socket, TCP to `127.0.0.1`, and sudo fallbacks (including Debian maintenance credentials). If all fail, it falls back to manual database entry. To avoid interactive prompts, set an environment variable before launching the menu:
+**Database picker**: The menu first tries the local socket and TCP (`127.0.0.1:3306`), using `MYSQL_PWD` if provided. If that fails (e.g., `root` authenticates via `unix_socket`), it can prompt for the **DB root password** and retry, then for the **sudo password** to enumerate as root or via `/etc/mysql/debian.cnf`. If all attempts fail, the menu falls back to manual entry and will prefill the name found in `wp-config.php` when available. To avoid interactive prompts, set an environment variable before launching the menu:
 
 ```bash
 export LAMPKITCTL_DB_ROOT_PASS='your-root-password'

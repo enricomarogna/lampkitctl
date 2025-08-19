@@ -7,4 +7,4 @@ def test_filters_system(monkeypatch):
 
     monkeypatch.setattr(db_introspect.subprocess, "check_output", fake_check_output)
     dblist = db_introspect.list_databases()
-    assert dblist.databases == ["custom1", "mydb"]
+    assert dblist == ["custom1", "mydb"]

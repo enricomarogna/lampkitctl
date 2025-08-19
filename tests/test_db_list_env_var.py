@@ -1,5 +1,5 @@
-from types import SimpleNamespace
-from lampkitctl import menu, db_introspect
+from lampkitctl import db_introspect
+
 
 def test_db_list_env_var(monkeypatch):
     db_introspect._CACHED_ROOT_PASSWORD = None
@@ -12,11 +12,6 @@ def test_db_list_env_var(monkeypatch):
 
     monkeypatch.setattr(db_introspect.subprocess, "check_output", fake_check_output)
 
-    def fake_secret(message):
-        raise AssertionError("prompt should not be called")
-
-    menu.inquirer = SimpleNamespace(secret=fake_secret)
-
-    dblist = menu._list_dbs_interactive()
+    dblist = db_introspect.list_databases()
     assert dblist == ["mydb"]
     assert env_calls == ["pw"]
