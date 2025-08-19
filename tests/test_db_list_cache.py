@@ -1,9 +1,9 @@
-from lampkitctl import db_introspect
+from lampkitctl import db_introspect, auth_cache
 
 
 def test_cache_root_password(monkeypatch):
-    db_introspect._CACHED_ROOT_PASSWORD = None
-    db_introspect.cache_root_password("secret")
+    auth_cache.clear()
+    auth_cache.set_db_root_password("secret")
     seen = []
 
     def fake_check_output(cmd, env=None, text=None, stderr=None):

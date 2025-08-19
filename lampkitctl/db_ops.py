@@ -6,6 +6,7 @@ from typing import Optional
 
 from .utils import run_command
 import textwrap
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -109,14 +110,13 @@ def create_database_and_user(
         f" GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{user}'@'localhost';"
         " FLUSH PRIVILEGES;"
     )
-    cmd = ["mysql", "-u", root_user]
-    log_cmd = ["mysql", "-u", root_user]
+    cmd = ["mysql", "-u", root_user, "-e", sql]
+    log_cmd = ["mysql", "-u", root_user, "-e", "<SQL>"]
+    env = None
     if root_password:
-        cmd.append(f"-p{root_password}")
-        log_cmd.append("-p******")
-    cmd.extend(["-e", sql])
-    log_cmd.extend(["-e", "<SQL>"])
-    run_command(cmd, dry_run, log_cmd=log_cmd)
+        env = os.environ.copy()
+        env["MYSQL_PWD"] = root_password
+    run_command(cmd, dry_run, log_cmd=log_cmd, env=env)
 
 
 def drop_database_and_user(
@@ -162,11 +162,10 @@ def drop_database_and_user(
         f" DROP USER IF EXISTS '{user_name}'@'{host}';"
         " FLUSH PRIVILEGES;"
     )
-    cmd = ["mysql", "-u", root_user]
-    log_cmd = ["mysql", "-u", root_user]
+    cmd = ["mysql", "-u", root_user, "-e", sql]
+    log_cmd = ["mysql", "-u", root_user, "-e", "<SQL>"]
+    env = None
     if root_password:
-        cmd.append(f"-p{root_password}")
-        log_cmd.append("-p******")
-    cmd.extend(["-e", sql])
-    log_cmd.extend(["-e", "<SQL>"])
-    run_command(cmd, dry_run, log_cmd=log_cmd)
+        env = os.environ.copy()
+        env["MYSQL_PWD"] = root_password
+    run_command(cmd, dry_run, log_cmd=log_cmd, env=env)

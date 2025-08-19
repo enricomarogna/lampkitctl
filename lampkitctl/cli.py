@@ -246,7 +246,7 @@ def create_site(
     auth_mode = db_root_auth
     if auth_mode == "auto":
         auth_mode = "socket" if db_ops.detect_engine() == "mariadb" else "password"
-    root_pw = db_root_pass
+    root_pw = db_root_pass or os.environ.get("LAMPKITCTL_DB_ROOT_PASS")
     if auth_mode == "password" and not root_pw:
         if dry_run:
             root_pw = ""
@@ -314,7 +314,7 @@ def uninstall_site(
     auth_mode = db_root_auth
     if auth_mode == "auto":
         auth_mode = "socket" if db_ops.detect_engine() == "mariadb" else "password"
-    root_pw = db_root_pass
+    root_pw = db_root_pass or os.environ.get("LAMPKITCTL_DB_ROOT_PASS")
     if auth_mode == "password" and not root_pw:
         if dry_run:
             root_pw = ""
@@ -344,7 +344,11 @@ def list_sites() -> None:
     if not preflight.has_cmd("apache2").ok or not preflight.apache_paths_present().ok:
         click.echo("Apache not installed. No sites to list.")
         return
-    for site in system_ops.list_sites():
+    sites = system_ops.list_sites()
+    if not sites:
+        click.echo("No sites found")
+        return
+    for site in sites:
         click.echo(f"{site['domain']} -> {site['doc_root']}")
 
 

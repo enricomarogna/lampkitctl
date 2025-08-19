@@ -1,5 +1,6 @@
 import logging
 from typing import List
+from types import SimpleNamespace
 
 import logging
 from typing import List
@@ -20,11 +21,11 @@ def test_run_menu_routing(monkeypatch):
 
     called = {}
 
-    def fake_call(args):
+    def fake_run(args, **kwargs):
         called["args"] = args
-        return 0
+        return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(menu.subprocess, "call", fake_call)
+    monkeypatch.setattr(menu.subprocess, "run", fake_run)
 
     menu.run_menu(dry_run=True)
     assert called["args"] == [
@@ -68,3 +69,10 @@ def test_create_site_propagates_and_masks(monkeypatch, caplog):
 
     assert all(dry for _, dry in calls)
     assert "secret" not in caplog.text
+
+
+def test_list_sites_empty(monkeypatch, capsys):
+    monkeypatch.setattr(menu, "list_installed_sites", lambda: [])
+    menu._list_sites_flow()
+    out = capsys.readouterr().out
+    assert "No sites found" in out

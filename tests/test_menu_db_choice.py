@@ -1,4 +1,5 @@
 from lampkitctl import menu
+from types import SimpleNamespace
 
 
 def test_menu_db_choice(monkeypatch):
@@ -10,11 +11,11 @@ def test_menu_db_choice(monkeypatch):
 
     called = {}
 
-    def fake_call(args):
+    def fake_run(args, **kwargs):
         called["args"] = args
-        return 0
+        return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(menu.subprocess, "call", fake_call)
+    monkeypatch.setattr(menu.subprocess, "run", fake_run)
 
     menu.run_menu(dry_run=True)
     assert called["args"] == [

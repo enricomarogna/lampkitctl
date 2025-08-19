@@ -1,6 +1,7 @@
 import pytest
 
 from lampkitctl import menu
+from types import SimpleNamespace
 
 
 def test_menu_install_lamp_uses_sudo(monkeypatch):
@@ -9,11 +10,11 @@ def test_menu_install_lamp_uses_sudo(monkeypatch):
     monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/abs/path/to/lampkitctl")
     monkeypatch.setattr(menu.os, "geteuid", lambda: 1000)
 
-    def fake_call(args):
+    def fake_run(args, **kwargs):
         captured["args"] = args
-        return 0
+        return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(menu.subprocess, "call", fake_call)
+    monkeypatch.setattr(menu.subprocess, "run", fake_run)
 
     responses = iter(["Install LAMP server", "MySQL"])
     monkeypatch.setattr(menu, "_select", lambda message, choices: next(responses))
@@ -38,11 +39,11 @@ def test_run_cli_root_calls_subprocess(monkeypatch):
     monkeypatch.setattr(menu.os, "geteuid", lambda: 0)
     called = {}
 
-    def fake_call(args):
+    def fake_run(args, **kwargs):
         called["args"] = args
-        return 0
+        return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(menu.subprocess, "call", fake_call)
+    monkeypatch.setattr(menu.subprocess, "run", fake_run)
 
     rc = menu._run_cli([
         "install-lamp",

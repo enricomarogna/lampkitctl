@@ -11,6 +11,7 @@ from typing import Iterable, List, Optional
 
 from . import (
     apache_vhosts,
+    auth_cache,
     db_ops,
     preflight,
     preflight_locks,
@@ -37,20 +38,55 @@ except Exception:  # pragma: no cover - handled gracefully
     inquirer = None
 
 
+_DEF_DB_PROMPT = "Database root password:"
+_DEF_SUDO_PROMPT = "Sudo password (required to escalate):"
+
+
+def ensure_db_root_password(prompt_message: str = _DEF_DB_PROMPT) -> str | None:
+    pwd = auth_cache.get_db_root_password()
+    if pwd:
+        return pwd
+    if inquirer:  # pragma: no cover - optional dependency
+        pwd = inquirer.secret(message=prompt_message).execute()
+    else:  # pragma: no cover - no InquirerPy
+        pwd = getpass.getpass(prompt_message + " ")
+    if pwd:
+        auth_cache.set_db_root_password(pwd)
+    return pwd
+
+
+def ensure_sudo_password(prompt_message: str = _DEF_SUDO_PROMPT) -> str | None:
+    spwd = auth_cache.get_sudo_password()
+    if spwd:
+        return spwd
+    if inquirer:  # pragma: no cover - optional dependency
+        spwd = inquirer.secret(message=prompt_message).execute()
+    else:  # pragma: no cover - no InquirerPy
+        spwd = getpass.getpass(prompt_message + " ")
+    if spwd:
+        auth_cache.set_sudo_password(spwd)
+    return spwd
+
+
 # ---------------------------------------------------------------------------
 # CLI runner
 # ---------------------------------------------------------------------------
 
 def _run_cli(args: list[str], *, dry_run: bool = False) -> int:
     exe = resolve_self_executable()
-    if exe:
-        base = [exe]
-    else:
-        base = [sys.executable, "-m", "lampkitctl"]
+    base = [exe] if exe else [sys.executable, "-m", "lampkitctl"]
     cmd = base + args
+    env = os.environ.copy()
+    db_pw = auth_cache.get_db_root_password()
+    if db_pw:
+        env["LAMPKITCTL_DB_ROOT_PASS"] = db_pw
     if os.geteuid() != 0 and not dry_run:
         cmd = build_sudo_cmd(cmd)
-    return subprocess.call(cmd)
+        spwd = auth_cache.get_sudo_password()
+        result = subprocess.run(cmd, input=(f"{spwd}\n" if spwd else None), text=True, env=env)
+        return result.returncode
+    result = subprocess.run(cmd, env=env)
+    return result.returncode
 
 
 # ---------------------------------------------------------------------------
@@ -304,12 +340,8 @@ def _db_picker_with_fallbacks(docroot: str) -> str | None:
 
     # 2) If failed, ask for DB root password once and retry
     if not dbs:
-        if inquirer:  # pragma: no cover - optional dependency
-            pwd = inquirer.secret(message="Database root password:").execute()
-        else:  # pragma: no cover - no InquirerPy
-            pwd = getpass.getpass("Database root password: ")
+        pwd = ensure_db_root_password()
         if pwd:
-            dbi.cache_root_password(pwd)
             try:
                 dbs = dbi.list_databases(password=pwd)
             except Exception:
@@ -317,12 +349,7 @@ def _db_picker_with_fallbacks(docroot: str) -> str | None:
 
     # 3) If still failing, prompt for sudo password and try sudo fallbacks
     if not dbs:
-        if inquirer:  # pragma: no cover - optional dependency
-            spwd = inquirer.secret(
-                message="Sudo password (to enumerate databases):"
-            ).execute()
-        else:  # pragma: no cover - no InquirerPy
-            spwd = getpass.getpass("Sudo password (to enumerate databases): ")
+        spwd = ensure_sudo_password("Sudo password (to enumerate databases):")
         if spwd:
             try:
                 dbs = dbi.list_databases_with_sudo(spwd)
@@ -393,24 +420,15 @@ def _db_user_picker_with_fallbacks(docroot: str) -> str | None:
         users = None
 
     if not users:
-        if inquirer:  # pragma: no cover - optional dependency
-            pwd = inquirer.secret(message="Database root password:").execute()
-        else:  # pragma: no cover - no InquirerPy
-            pwd = getpass.getpass("Database root password: ")
+        pwd = ensure_db_root_password()
         if pwd:
-            dbi.cache_root_password(pwd)
             try:
                 users = dbi.list_users(password=pwd).items
             except Exception:
                 users = None
 
     if not users:
-        if inquirer:  # pragma: no cover - optional dependency
-            spwd = inquirer.secret(
-                message="Sudo password (to enumerate users):"
-            ).execute()
-        else:  # pragma: no cover - no InquirerPy
-            spwd = getpass.getpass("Sudo password (to enumerate users): ")
+        spwd = ensure_sudo_password("Sudo password (to enumerate users):")
         if spwd:
             try:
                 users = dbi.list_users_with_sudo(spwd).items
@@ -645,6 +663,9 @@ def _generate_ssl_flow(dry_run: bool) -> None:
 
 def _list_sites_flow() -> None:
     sites = list_installed_sites()
+    if not sites:
+        echo_error("No sites found")
+        return
     for site in sites:
         print(f"{site['domain']} -> {site['doc_root']}")
 
