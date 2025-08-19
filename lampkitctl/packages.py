@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass
+from typing import Iterable, List
 
 from . import utils
 
@@ -92,4 +93,53 @@ PHP_EXTRAS = [
 ]
 APACHE_PKG = "apache2"
 CERTBOT_PKGS = ["certbot", "python3-certbot-apache"]
+
+
+@dataclass(frozen=True)
+class PkgStatus:
+    """Package state buckets returned by :func:`detect_pkg_status`."""
+
+    missing: List[str]
+    upgradable: List[str]
+    uptodate: List[str]
+
+
+_POLICY_RE = re.compile(r"^(Installed|Candidate):\s*(.*)$", re.M)
+_DEF_APT_CACHE = ["apt-cache", "policy"]
+
+
+def _policy(pkg: str) -> tuple[str | None, str | None]:
+    """Return (installed, candidate) versions for ``pkg``."""
+
+    out = subprocess.check_output(
+        _DEF_APT_CACHE + [pkg], text=True, stderr=subprocess.STDOUT
+    )
+    inst = cand = None
+    for m in _POLICY_RE.finditer(out):
+        key, val = m.group(1), m.group(2).strip()
+        if key == "Installed":
+            inst = val
+        elif key == "Candidate":
+            cand = val
+    return inst, cand
+
+
+_DEF_NONE = {"(none)", "none", "<none>"}
+
+
+def detect_pkg_status(pkgs: Iterable[str]) -> PkgStatus:
+    """Return package status for ``pkgs``."""
+
+    missing: List[str] = []
+    upgradable: List[str] = []
+    uptodate: List[str] = []
+    for p in pkgs:
+        inst, cand = _policy(p)
+        if not inst or inst in _DEF_NONE:
+            missing.append(p)
+        elif cand and cand != inst:
+            upgradable.append(p)
+        else:
+            uptodate.append(p)
+    return PkgStatus(missing, upgradable, uptodate)
 

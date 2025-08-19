@@ -11,32 +11,31 @@ from lampkitctl import menu
 
 
 def test_run_menu_routing(monkeypatch):
-    """Ensure menu builds the correct CLI invocation."""
-    sequence = iter(["Install LAMP server", "Auto", "Exit"])
+    """Ensure menu invokes installation with selected options."""
+
+    sequence = iter(["Install LAMP server", "Auto"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
     monkeypatch.setattr(menu, "_confirm", lambda msg, default=True: True)
 
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
-    monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/venv/lampkitctl")
 
     called = {}
 
-    def fake_run(args, **kwargs):
-        called["args"] = args
-        return SimpleNamespace(returncode=0)
+    def fake_install_lamp(db_engine: str, wait_apt_lock: int, dry_run: bool):
+        called["engine"] = db_engine
+        called["wait"] = wait_apt_lock
+        return "mysql"
 
-    monkeypatch.setattr(menu.subprocess, "run", fake_run)
+    monkeypatch.setattr(menu, "install_lamp", fake_install_lamp)
+    monkeypatch.setattr(menu, "ensure_db_root_password", lambda: "pw")
+    monkeypatch.setattr(
+        menu.db_ops, "set_root_password", lambda eng, pw, plugin, dry_run: called.update({"pwd": pw})
+    )
 
     menu.run_menu(dry_run=True)
-    assert called["args"] == [
-        "/venv/lampkitctl",
-        "install-lamp",
-        "--db-engine",
-        "auto",
-        "--wait-apt-lock",
-        "120",
-        "--set-db-root-pass",
-    ]
+    assert called["engine"] == "auto"
+    assert called["wait"] == 120
+    assert called["pwd"] == "pw"
 
 
 def test_validate_domain_invalid():

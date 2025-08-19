@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 from typing import Iterable, List, Optional
+from click import secho
 
 from . import (
     apache_vhosts,
@@ -34,6 +35,7 @@ from .elevate import (
     maybe_reexec_with_sudo,
     resolve_self_executable,
 )
+from .packages import detect_pkg_status
 
 logger = logging.getLogger(__name__)
 
@@ -146,26 +148,77 @@ def install_lamp(
     db_engine: str = "auto",
     wait_apt_lock: int = 120,
     dry_run: bool = False,
-) -> None:
-    """Install required LAMP components."""
+) -> str | None:
+    """Install or update LAMP packages, returning the chosen DB engine."""
 
     maybe_reexec_with_sudo(sys.argv, non_interactive=False, dry_run=dry_run)
     if wait_apt_lock > 0:
         info = preflight_locks.wait_for_lock(wait_apt_lock)
         if info.locked:
-            return
+            return None
     else:
         if preflight_locks.detect_lock().locked:
-            return
+            return None
+
     checks = preflight.checks_for("install-lamp")
     try:
         preflight.ensure_or_fail(checks, dry_run=dry_run)
     except SystemExit:
-        return
-    system_ops.install_lamp_stack(
-        None if db_engine == "auto" else db_engine,
-        dry_run=dry_run,
+        return None
+
+    # Determine DB engine if auto
+    engine = db_engine
+    if engine == "auto":
+        mysql_status = detect_pkg_status([system_ops.DB_MAP["mysql"]])
+        if mysql_status.uptodate or mysql_status.upgradable:
+            engine = "mysql"
+        else:
+            mariadb_status = detect_pkg_status([system_ops.DB_MAP["mariadb"]])
+            if mariadb_status.uptodate or mariadb_status.upgradable:
+                engine = "mariadb"
+            else:
+                engine = system_ops.detect_db_engine("auto").name
+
+    pkgs = system_ops.compute_lamp_packages(engine)
+    system_ops.run_command(["apt-get", "update"], dry_run)
+    status = detect_pkg_status(pkgs)
+
+    secho(
+        "Missing: " + (", ".join(status.missing) if status.missing else "–"),
+        fg="red",
     )
+    secho(
+        "Upgradable: " + (", ".join(status.upgradable) if status.upgradable else "–"),
+        fg="yellow",
+    )
+    secho(
+        "Up-to-date: " + (", ".join(status.uptodate) if status.uptodate else "–"),
+        fg="green",
+    )
+
+    if status.missing:
+        echo_info("Missing packages will be installed")
+        if not _confirm("Proceed with installation?", default=True):
+            return None
+        system_ops.install_or_update_lamp(engine, dry_run=dry_run, refresh=False)
+        return engine
+
+    if status.upgradable:
+        if _confirm(
+            f"Updates available for {len(status.upgradable)} packages. Update now?",
+            default=True,
+        ):
+            system_ops.install_or_update_lamp(engine, dry_run=dry_run, refresh=False)
+            return engine
+        return None
+
+    echo_ok("All components up to date")
+    if _confirm("Force reinstall anyway?", default=False):
+        system_ops.run_command(
+            ["apt-get", "install", "-y", "--reinstall", *pkgs], dry_run
+        )
+        return engine
+    return engine
 
 
 def create_site(
@@ -703,23 +756,26 @@ def run_menu(dry_run: bool = False) -> None:
                 "Main > Install LAMP server > Wait for apt lock?",
                 default=True,
             )
-            args = [
-                "install-lamp",
-                "--db-engine",
-                engine_choice.lower() if engine_choice != "Auto" else "auto",
-                "--wait-apt-lock",
-                "120" if wait_choice else "0",
-            ]
-            if _confirm(
+            set_root = _confirm(
                 "Main > Install LAMP server > Set database root password now?",
                 default=True,
-            ):
-                if engine_choice == "MariaDB":
-                    echo_info(
-                        "MariaDB: root will switch from socket to password authentication."
-                    )
-                args.append("--set-db-root-pass")
-            _run_cli(args, dry_run=dry_run)
+            )
+            if set_root and engine_choice == "MariaDB":
+                echo_info(
+                    "MariaDB: root will switch from socket to password authentication."
+                )
+            eng = install_lamp(
+                db_engine=engine_choice.lower(),
+                wait_apt_lock=120 if wait_choice else 0,
+                dry_run=dry_run,
+            )
+            if eng and set_root:
+                pwd = ensure_db_root_password()
+                if pwd:
+                    if system_ops.ensure_db_ready(dry_run=dry_run):
+                        db_ops.set_root_password(eng, pwd, "default", dry_run=dry_run)
+                    else:
+                        echo_warn("Database server not ready, skipping root password")
             return
         elif choice == "Create a site":
             _create_site_flow(dry_run=dry_run)
