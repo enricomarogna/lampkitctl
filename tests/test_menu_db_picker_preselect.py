@@ -25,8 +25,10 @@ def test_db_picker_preselects_wp_db(monkeypatch):
 
         return R()
 
-    menu.inquirer = SimpleNamespace(select=fake_select, text=lambda **k: None, secret=lambda **k: None)
-    monkeypatch.setattr(menu, "_text", lambda *a, **k: "dbuser")
+    menu.inquirer = SimpleNamespace(
+        select=fake_select, text=lambda **k: None, secret=lambda **k: None
+    )
+    monkeypatch.setattr(menu, "_db_user_picker_with_fallbacks", lambda doc_root: "dbuser")
     monkeypatch.setattr(menu, "_confirm", lambda *a, **k: True)
     calls = []
     monkeypatch.setattr(menu, "_run_cli", lambda args, dry_run=False: calls.append(args) or 0)

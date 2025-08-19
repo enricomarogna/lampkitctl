@@ -376,6 +376,90 @@ def _db_picker_with_fallbacks(docroot: str) -> str | None:
     return selected
 
 
+_DEF_WARN_USER_MANUAL = "Falling back to manual user entry"
+
+
+def _db_user_picker_with_fallbacks(docroot: str) -> str | None:
+    pre_user = pre_host = None
+    cfg = dbi.parse_wp_config(docroot)
+    if cfg:
+        pre_user = cfg.user
+        pre_host = (cfg.host or "localhost").split(":", 1)[0]
+    pre_combo = f"{pre_user}@{pre_host}" if (pre_user and pre_host) else None
+
+    try:
+        users = dbi.list_users().items
+    except Exception:
+        users = None
+
+    if not users:
+        if inquirer:  # pragma: no cover - optional dependency
+            pwd = inquirer.secret(message="Database root password:").execute()
+        else:  # pragma: no cover - no InquirerPy
+            pwd = getpass.getpass("Database root password: ")
+        if pwd:
+            dbi.cache_root_password(pwd)
+            try:
+                users = dbi.list_users(password=pwd).items
+            except Exception:
+                users = None
+
+    if not users:
+        if inquirer:  # pragma: no cover - optional dependency
+            spwd = inquirer.secret(
+                message="Sudo password (to enumerate users):"
+            ).execute()
+        else:  # pragma: no cover - no InquirerPy
+            spwd = getpass.getpass("Sudo password (to enumerate users): ")
+        if spwd:
+            try:
+                users = dbi.list_users_with_sudo(spwd).items
+            except Exception:
+                users = None
+
+    if not users:
+        if pre_combo:
+            _warn(
+                f"Could not list DB users. Using wp-config.php user: {pre_combo}"
+            )
+            return pre_combo
+        _warn(_DEF_WARN_USER_MANUAL)
+        if inquirer:  # pragma: no cover - optional dependency
+            return inquirer.text(
+                message="Database user (user@host or user)"
+            ).execute()
+        return _text("Database user (user@host or user)")
+
+    choices = [{"name": u, "value": u} for u in users]
+    if pre_combo and pre_combo in set(users):
+        default = pre_combo
+    else:
+        default = choices[0]["value"] if choices else None
+    choices.append({"name": "Custom…", "value": "__CUSTOM__"})
+
+    if inquirer:  # pragma: no cover - optional dependency
+        selected = inquirer.select(
+            message="Select database user", choices=choices, default=default
+        ).execute()
+    else:  # pragma: no cover - no InquirerPy
+        while True:
+            print("Select database user")
+            for idx, choice in enumerate(choices, 1):
+                print(f"{idx}) {choice['name']}")
+            resp = input("Select: ").strip()
+            if resp.isdigit() and 1 <= int(resp) <= len(choices):
+                selected = choices[int(resp) - 1]["value"]
+                break
+
+    if selected == "__CUSTOM__":
+        if inquirer:  # pragma: no cover - optional dependency
+            return inquirer.text(
+                message="Database user (user@host or user)"
+            ).execute()
+        return _text("Database user (user@host or user)")
+    return selected
+
+
 # ---------------------------------------------------------------------------
 # Interactive flows
 # ---------------------------------------------------------------------------
@@ -458,7 +542,9 @@ def _uninstall_site_flow(dry_run: bool) -> None:
     db_name = _db_picker_with_fallbacks(doc_root)
     if not db_name:
         return
-    db_user = _text("Main > Uninstall site > Database user")
+    db_user = _db_user_picker_with_fallbacks(doc_root)
+    if not db_user:
+        return
     if not _confirm(f"Remove site {domain}?", default=False):
         return
     if not _confirm("This action is destructive. Continue?", default=False):
