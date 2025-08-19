@@ -11,6 +11,9 @@ def test_resume_after_install(monkeypatch):
         return 0
 
     monkeypatch.setattr(menu, "_run_cli", fake_run_cli)
+    monkeypatch.setattr(menu, "install_lamp", lambda **k: "mysql")
+    monkeypatch.setattr(menu, "ensure_db_root_password", lambda: "pw")
+    monkeypatch.setattr(menu.db_ops, "set_root_password", lambda *a, **k: None)
     monkeypatch.setattr(menu.preflight, "is_apache_installed", lambda: preflight.CheckResult(True, ""))
     monkeypatch.setattr(menu.preflight, "apache_paths_present", lambda: preflight.CheckResult(True, ""))
     monkeypatch.setattr(menu.preflight, "is_mysql_installed", lambda: preflight.CheckResult(True, ""))

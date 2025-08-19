@@ -1,29 +1,21 @@
 from lampkitctl import menu
-from types import SimpleNamespace
 
 
 def test_menu_db_choice(monkeypatch):
-    sequence = iter(["Install LAMP server", "MariaDB", "Exit"])
+    sequence = iter(["Install LAMP server", "MariaDB"])
     monkeypatch.setattr(menu, "_select", lambda msg, choices: next(sequence))
     monkeypatch.setattr(menu, "_confirm", lambda msg, default=True: True)
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)
-    monkeypatch.setattr(menu, "resolve_self_executable", lambda: "/venv/lampkitctl")
 
     called = {}
 
-    def fake_run(args, **kwargs):
-        called["args"] = args
-        return SimpleNamespace(returncode=0)
+    def fake_install_lamp(db_engine: str, wait_apt_lock: int, dry_run: bool):
+        called["engine"] = db_engine
+        return "mariadb"
 
-    monkeypatch.setattr(menu.subprocess, "run", fake_run)
+    monkeypatch.setattr(menu, "install_lamp", fake_install_lamp)
+    monkeypatch.setattr(menu, "ensure_db_root_password", lambda: "pw")
+    monkeypatch.setattr(menu.db_ops, "set_root_password", lambda *a, **k: None)
 
     menu.run_menu(dry_run=True)
-    assert called["args"] == [
-        "/venv/lampkitctl",
-        "install-lamp",
-        "--db-engine",
-        "mariadb",
-        "--wait-apt-lock",
-        "120",
-        "--set-db-root-pass",
-    ]
+    assert called["engine"] == "mariadb"

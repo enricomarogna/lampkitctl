@@ -15,12 +15,71 @@ from .packages import (
     PHP_EXTRAS,
     detect_db_engine,
     refresh_cache,
+    detect_pkg_status,
 )
 from .utils import run_command, atomic_append
 from . import preflight_locks
 
 logger = logging.getLogger(__name__)
 
+
+# Packages comprising the LAMP stack (minus the DB engine).
+LAMP_BASE = [APACHE_PKG, *PHP_BASE, *PHP_EXTRAS, *CERTBOT_PKGS]
+DB_MAP = {"mysql": "mysql-server", "mariadb": "mariadb-server"}
+
+
+def compute_lamp_packages(db_engine: str) -> list[str]:
+    """Return package list for ``db_engine`` plus core LAMP components."""
+
+    return [DB_MAP[db_engine]] + LAMP_BASE
+
+
+def install_or_update_lamp(
+    db_engine: str,
+    *,
+    dry_run: bool = False,
+    wait_lock: int | None = None,
+    refresh: bool = True,
+) -> None:
+    """Install or update the LAMP stack depending on package status."""
+
+    if wait_lock and wait_lock > 0:
+        info = preflight_locks.wait_for_lock(wait_lock)
+        if info.locked:
+            raise SystemExit(2)
+    elif wait_lock == 0:
+        if preflight_locks.detect_lock().locked:
+            raise SystemExit(2)
+
+    pkgs = compute_lamp_packages(db_engine)
+    if refresh:
+        run_command(["apt-get", "update"], dry_run)
+    status = detect_pkg_status(pkgs)
+
+    if status.missing:
+        logger.info(
+            "install_lamp_stack",
+            extra={"packages": pkgs, "db_engine": db_engine, "dry_run": dry_run},
+        )
+        run_command(
+            ["apt-get", "install", "-y", "--no-install-recommends", *pkgs], dry_run
+        )
+        return
+
+    if status.upgradable:
+        logger.info(
+            "update_lamp_stack",
+            extra={"packages": status.upgradable, "db_engine": db_engine, "dry_run": dry_run},
+        )
+        run_command(
+            ["apt-get", "install", "-y", "--only-upgrade", *status.upgradable], dry_run
+        )
+        return
+
+    logger.info(
+        "lamp_stack_uptodate",
+        extra={"packages": pkgs, "db_engine": db_engine, "dry_run": dry_run},
+    )
 
 def ensure_db_ready(retries: int = 5, delay: float = 1.0, dry_run: bool = False) -> bool:
     """Return ``True`` when the database server responds to ``SELECT 1``."""

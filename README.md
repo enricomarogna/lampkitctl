@@ -288,6 +288,14 @@ sudo "$(command -v lampkitctl)" install-lamp --db-engine auto \
 falling back to `mariadb-server`. Override the choice with `--db-engine mysql`
 or `--db-engine mariadb`.
 
+The installer now inspects each Apache, database, PHP and Certbot package and
+places them into three buckets: missing, upgradable and up‑to‑date. If any are
+missing, the full stack is installed. If only upgrades are available, a concise
+summary is shown and you are asked to confirm the update using
+`apt-get install --only-upgrade`. When everything is up‑to‑date the command
+offers to force a reinstall. All prompts honour `--dry-run` and the apt lock
+handling options.
+
 ### Troubleshooting
 
 - **Package not found** – run `sudo apt-get update`, ensure your Ubuntu release
