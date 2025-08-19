@@ -36,6 +36,7 @@ from .elevate import (
     resolve_self_executable,
 )
 from .packages import detect_pkg_status
+from .db_detect import detect_db_engine as detect_installed_db
 
 logger = logging.getLogger(__name__)
 
@@ -748,10 +749,25 @@ def run_menu(dry_run: bool = False) -> None:
     while True:
         choice = _select("Main > Choose an option", options)
         if choice == "Install LAMP server":
-            engine_choice = _select(
-                "Main > Install LAMP server > Database engine",
-                ["Auto", "MySQL", "MariaDB"],
-            )
+            engine_choice: str | None = None
+            auto_eng = detect_installed_db()
+            if auto_eng:
+                pkgs = system_ops.compute_lamp_packages(auto_eng)
+                status = detect_pkg_status(pkgs)
+                if not status.missing:
+                    display = {"mysql": "MySQL", "mariadb": "MariaDB"}[auto_eng]
+                    secho(
+                        f"DB engine: {display} (auto-detected)",
+                        fg="cyan",
+                    )
+                    engine_choice = auto_eng
+            if engine_choice is None:
+                engine_choice = _select(
+                    "Main > Install LAMP server > Database engine",
+                    ["Auto", "MySQL", "MariaDB"],
+                ).lower()
+            else:
+                engine_choice = engine_choice.lower()
             wait_choice = _confirm(
                 "Main > Install LAMP server > Wait for apt lock?",
                 default=True,
@@ -760,12 +776,12 @@ def run_menu(dry_run: bool = False) -> None:
                 "Main > Install LAMP server > Set database root password now?",
                 default=True,
             )
-            if set_root and engine_choice == "MariaDB":
+            if set_root and engine_choice == "mariadb":
                 echo_info(
                     "MariaDB: root will switch from socket to password authentication."
                 )
             eng = install_lamp(
-                db_engine=engine_choice.lower(),
+                db_engine=engine_choice,
                 wait_apt_lock=120 if wait_choice else 0,
                 dry_run=dry_run,
             )

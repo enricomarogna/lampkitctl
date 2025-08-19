@@ -13,10 +13,13 @@ from .packages import (
     CERTBOT_PKGS,
     PHP_BASE,
     PHP_EXTRAS,
-    detect_db_engine,
+    detect_db_engine as _detect_pkg_db_engine,
     refresh_cache,
     detect_pkg_status,
 )
+
+# Re-export for backward compatibility
+detect_db_engine = _detect_pkg_db_engine
 from .utils import run_command, atomic_append
 from . import preflight_locks
 

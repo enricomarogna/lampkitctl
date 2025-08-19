@@ -46,6 +46,8 @@ It targets both advanced users—through granular commands—and less experience
 
 * ✅ **LAMP detection & installation**
   Installs Apache, MySQL/MariaDB, PHP (and essential PHP/Apache modules); enables `mod_rewrite`.
+* ✅ **DB engine auto-detection**
+  Skips the MySQL/MariaDB prompt when an engine is already installed.
 
 * ✅ **Apache VirtualHosts**
   Creates HTTP (and optional SSL) vhosts with dedicated logs and a **DocumentRoot**.
