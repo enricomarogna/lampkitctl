@@ -343,8 +343,11 @@ def render_sites_table(
 def format_site_choices(sites: Iterable[Tuple[str, str]]) -> List[dict]:
     """Return ``InquirerPy``-compatible choices for discovered sites.
 
-    The ``name`` shown to users is ``domain.ljust(width) | path`` while the
-    ``value`` is the ``(domain, path)`` tuple.
+    A table-style layout is produced within the picker itself. The first two
+    entries are a disabled header row (``DOMAIN | PATH``) and a divider
+    matching the column widths. Each subsequent entry represents a site with
+    padded columns to keep alignment. The ``value`` for selectable rows is the
+    ``(domain, path)`` tuple.
     """
 
     sites = list(sites)
@@ -352,9 +355,25 @@ def format_site_choices(sites: Iterable[Tuple[str, str]]) -> List[dict]:
         return []
 
     domain_w = max(len("DOMAIN"), max(len(d) for d, _ in sites))
-    return [
-        {"name": f"{d.ljust(domain_w)} | {p}", "value": (d, p)} for d, p in sites
+    path_w = max(len("PATH"), max(len(p) for _, p in sites))
+
+    header = f"{'DOMAIN'.ljust(domain_w)} | {'PATH'.ljust(path_w)}"
+    sep = f"{'-' * domain_w}-+-{'-' * path_w}"
+
+    choices: List[dict] = [
+        {"name": header, "disabled": True},
+        {"name": sep, "disabled": True},
     ]
+
+    for d, p in sites:
+        choices.append(
+            {
+                "name": f"{d.ljust(domain_w)} | {p.ljust(path_w)}",
+                "value": (d, p),
+            }
+        )
+
+    return choices
 
 
 def render_sites_list(sites: list[tuple[str, str]], *, color: bool = True) -> None:
