@@ -52,6 +52,28 @@ def refresh_cache(dry_run: bool = False) -> None:
     utils.run_command(["apt-get", "update"], dry_run=dry_run, capture_output=True)
 
 
+def is_installed(pkg: str) -> bool:
+    """Return ``True`` if ``pkg`` is installed via ``dpkg``."""
+
+    try:
+        proc = subprocess.run(
+            ["dpkg-query", "-W", "-f=${Status}", pkg],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return False
+    if proc.returncode != 0:
+        return False
+    return proc.stdout.strip() == "install ok installed"
+
+
+def all_installed(pkgs: List[str]) -> bool:
+    """Return ``True`` when all packages in ``pkgs`` are installed."""
+
+    return all(is_installed(p) for p in pkgs)
+
+
 def detect_db_engine(preferred: str | None = None) -> Engine:
     """Detect a suitable database engine package."""
 
