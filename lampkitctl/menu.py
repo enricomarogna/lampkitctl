@@ -35,7 +35,7 @@ from .elevate import (
     maybe_reexec_with_sudo,
     resolve_self_executable,
 )
-from .packages import detect_pkg_status
+from .packages import detect_pkg_status, is_installed
 from .db_detect import detect_db_engine as detect_installed_db
 
 logger = logging.getLogger(__name__)
@@ -823,6 +823,45 @@ def run_menu(dry_run: bool = False) -> None:
                 ).lower()
             else:
                 engine_choice = engine_choice.lower()
+            eng_detected = detect_installed_db()
+            db_pkg = (
+                "mysql-server"
+                if eng_detected == "mysql"
+                else "mariadb-server" if eng_detected == "mariadb" else None
+            )
+            check = ["apache2", "php"] + ([db_pkg] if db_pkg else [])
+            present = [p for p in check if is_installed(p)]
+            missing = [p for p in check if not is_installed(p)]
+            if not db_pkg:
+                missing.append("mysql-server or mariadb-server")
+            secho("Package presence:", bold=True)
+            secho(
+                "  Present : " + (", ".join(present) if present else "–"), fg="green"
+            )
+            secho(
+                "  Missing : " + (", ".join(missing) if missing else "–"), fg="red"
+            )
+            logger.info(
+                "pkg_presence_summary", extra={"present": present, "missing": missing}
+            )
+            if not missing:
+                if _confirm(
+                    "Updates available may exist. Upgrade apache2 + DB + php now?",
+                    default=True,
+                ):
+                    wait_choice = _confirm(
+                        "Main > Install LAMP server > Wait for apt lock?",
+                        default=True,
+                    )
+                    maybe_reexec_with_sudo(
+                        sys.argv, non_interactive=False, dry_run=dry_run
+                    )
+                    system_ops.upgrade_core_components(
+                        eng_detected or engine_choice,
+                        dry_run=dry_run,
+                        wait_apt_lock=120 if wait_choice else 0,
+                    )
+                return
             wait_choice = _confirm(
                 "Main > Install LAMP server > Wait for apt lock?",
                 default=True,

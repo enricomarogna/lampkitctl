@@ -135,6 +135,27 @@ def reinstall_lamp_stack(pkgs: list[str], *, dry_run: bool = False) -> None:
     run_command(["apt-get", "install", "-y", "--reinstall", *pkgs], dry_run)
 
 
+def upgrade_core_components(
+    db_engine: str, *, dry_run: bool = False, wait_apt_lock: int = 120
+) -> None:
+    """Upgrade Apache, PHP and the database server if already installed."""
+
+    if wait_apt_lock > 0:
+        info = preflight_locks.wait_for_lock(wait_apt_lock)
+        if info.locked:
+            return
+    else:
+        if preflight_locks.detect_lock().locked:
+            return
+    pkgs = [APACHE_PKG, DB_MAP[db_engine], "php"]
+    logger.info(
+        "upgrade_lamp_core",
+        extra={"engine": db_engine, "packages": pkgs, "dry_run": dry_run},
+    )
+    run_command(["apt-get", "update"], dry_run)
+    run_command(["apt", "upgrade", "-y", *pkgs], dry_run)
+
+
 def install_lamp_stack_full(
     preferred_engine: str | None,
     with_php: bool = True,

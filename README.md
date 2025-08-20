@@ -263,6 +263,13 @@ sudo lampkitctl install-lamp --db-engine mariadb
 sudo lampkitctl install-lamp --db-engine auto --dry-run
 ```
 
+If Apache, PHP and the database server are already installed, the tool offers
+to run a targeted upgrade instead of reinstalling the full stack:
+
+```
+sudo apt upgrade apache2 mysql-server php  # or mariadb-server
+```
+
 By default the installer prompts to set a **database root password**. From the
 interactive menu this prompt is delegated to the CLI so it appears only once.
 For a non-interactive run supply the password via environment variable:
