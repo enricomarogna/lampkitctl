@@ -303,12 +303,17 @@ def _format_site_line(domain: str, docroot: str) -> str:
 _DEF_EMPTY = "No sites found"
 
 
-def render_sites_table(sites: Iterable[Tuple[str, str]]) -> None:
+def render_sites_table(
+    sites: Iterable[Tuple[str, str]],
+    pad_top: int = 1,
+    pad_bottom: int = 1,
+) -> None:
     """Render discovered sites as a two-column table: DOMAIN | PATH.
 
-    * ``sites`` is an iterable of ``(domain, path)`` tuples.
-    * Handles empty state with a red message.
-    * Column widths adapt to longest domain/path; no wrapping.
+    Args:
+        sites: Iterable of ``(domain, path)`` tuples.
+        pad_top: Number of blank lines printed before the table.
+        pad_bottom: Number of blank lines printed after the table.
     """
 
     sites = list(sites)
@@ -319,6 +324,9 @@ def render_sites_table(sites: Iterable[Tuple[str, str]]) -> None:
     domain_w = max(len("DOMAIN"), max(len(d) for d, _ in sites))
     path_w = max(len("PATH"), max(len(p) for _, p in sites))
 
+    if pad_top:
+        click.echo("\n" * pad_top, nl=False)
+
     header = f"{'DOMAIN'.ljust(domain_w)} | {'PATH'.ljust(path_w)}"
     sep = f"{'-' * domain_w}-+-{'-' * path_w}"
 
@@ -326,9 +334,27 @@ def render_sites_table(sites: Iterable[Tuple[str, str]]) -> None:
     click.secho(sep, dim=True)
 
     for domain, path in sites:
-        click.secho(domain.ljust(domain_w), fg="green", nl=False)
-        click.secho(" | ", dim=True, nl=False)
-        click.echo(path)
+        click.secho(f"{domain.ljust(domain_w)} | {path}", fg="green")
+
+    if pad_bottom:
+        click.echo("\n" * pad_bottom, nl=False)
+
+
+def format_site_choices(sites: Iterable[Tuple[str, str]]) -> List[dict]:
+    """Return ``InquirerPy``-compatible choices for discovered sites.
+
+    The ``name`` shown to users is ``domain.ljust(width) | path`` while the
+    ``value`` is the ``(domain, path)`` tuple.
+    """
+
+    sites = list(sites)
+    if not sites:
+        return []
+
+    domain_w = max(len("DOMAIN"), max(len(d) for d, _ in sites))
+    return [
+        {"name": f"{d.ljust(domain_w)} | {p}", "value": (d, p)} for d, p in sites
+    ]
 
 
 def render_sites_list(sites: list[tuple[str, str]], *, color: bool = True) -> None:
