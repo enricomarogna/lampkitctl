@@ -29,6 +29,7 @@ from .utils import (
     echo_title,
     ask_confirm,
     render_sites_table,
+    format_site_choices,
 )
 from .elevate import (
     build_sudo_cmd,
@@ -419,31 +420,29 @@ def _confirm(message: str, default: bool = False) -> bool:
 
 
 def _choose_site() -> apache_vhosts.VHost | str | None:
-    sites = apache_vhosts.list_vhosts()
+    vhosts = apache_vhosts.list_vhosts()
+    sites = [(v.domain, v.docroot or "") for v in vhosts]
     if not sites:
-        echo_error("No sites found")
+        secho("No sites found", fg="red")
         return None
-    choices = [
-        {
-            "name": f"{v.domain}  —  {v.docroot or '(no DocumentRoot)'}" + ("  [SSL]" if v.ssl else ""),
-            "value": v,
-        }
-        for v in sites
-    ]
-    choices.append({"name": "Custom...", "value": "custom"})
+    render_sites_table(sites, pad_top=1, pad_bottom=1)
+    choices = format_site_choices(sites)
+    choices.append({"name": "Custom...", "value": "__custom__"})
     if inquirer:  # pragma: no cover
-        return inquirer.select(
-            message="Select a site",
-            choices=choices,
-            default=choices[0]["value"],
-        ).execute()
-    while True:
-        print("Select a site")
-        for idx, choice in enumerate(choices, 1):
-            print(f"{idx}) {choice['name']}")
-        resp = input("Select: ").strip()
-        if resp.isdigit() and 1 <= int(resp) <= len(choices):
-            return choices[int(resp) - 1]["value"]
+        sel = inquirer.select(message="Select a site", choices=choices).execute()
+    else:
+        while True:
+            print("Select a site")
+            for idx, choice in enumerate(choices, 1):
+                print(f"{idx}) {choice['name']}")
+            resp = input("Select: ").strip()
+            if resp.isdigit() and 1 <= int(resp) <= len(choices):
+                sel = choices[int(resp) - 1]["value"]
+                break
+    if sel == "__custom__":
+        return "custom"
+    mapping = {(v.domain, v.docroot or ""): v for v in vhosts}
+    return mapping.get(sel)
 
 
 _DEF_WARN_MANUAL = "Falling back to manual database entry"
@@ -780,7 +779,7 @@ def _generate_ssl_flow(dry_run: bool) -> None:
 
 def _list_sites_flow() -> None:
     sites = list_installed_sites()
-    render_sites_table([(s["domain"], s["doc_root"]) for s in sites])
+    render_sites_table([(s["domain"], s["doc_root"]) for s in sites], pad_top=1, pad_bottom=1)
 
 
 # ---------------------------------------------------------------------------

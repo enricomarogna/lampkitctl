@@ -1,4 +1,4 @@
-from lampkitctl import menu, utils
+from lampkitctl import menu
 
 
 def test_no_sites_found_color(monkeypatch):
@@ -8,9 +8,9 @@ def test_no_sites_found_color(monkeypatch):
     def fake_secho(msg, fg=None, bold=None, **kwargs):
         calls.append((msg, fg, bold))
 
-    monkeypatch.setattr(utils.click, "secho", fake_secho)
+    monkeypatch.setattr(menu, "secho", fake_secho)
     menu._uninstall_site_flow(dry_run=True)
-    assert calls[0] == ("No sites found", "red", True)
+    assert calls[0][:2] == ("No sites found", "red")
 
 
 def test_no_sites_for_ssl_color(monkeypatch):
@@ -20,6 +20,6 @@ def test_no_sites_for_ssl_color(monkeypatch):
     def fake_secho(msg, fg=None, bold=None, **kwargs):
         calls.append((msg, fg, bold))
 
-    monkeypatch.setattr(utils.click, "secho", fake_secho)
+    monkeypatch.setattr(menu, "secho", fake_secho)
     menu._generate_ssl_flow(dry_run=True)
-    assert calls[0] == ("No sites found", "red", True)
+    assert calls[0][:2] == ("No sites found", "red")

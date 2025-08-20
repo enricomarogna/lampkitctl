@@ -20,8 +20,9 @@ def test_list_sites_table(capsys):
     expected_sep = f"{'-' * domain_w}-+-{'-' * path_w}"
     expected_rows = [f"{d.ljust(domain_w)} | {p}" for d, p in sites]
 
-    assert lines[0] == expected_header
-    assert lines[1] == expected_sep
-    assert lines[2:] == expected_rows
+    assert lines[0] == ""
+    assert lines[1] == expected_header
+    assert lines[2] == expected_sep
+    assert lines[3:-1] == expected_rows
+    assert lines[-1] == ""
     assert "->" not in out
-    assert len(lines) == len(sites) + 2

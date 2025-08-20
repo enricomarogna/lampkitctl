@@ -144,11 +144,12 @@ def test_cli_list_sites(monkeypatch) -> None:
     expected_sep = f"{'-' * domain_w}-+-{'-' * path_w}"
     expected_row = f"{'a.com'.ljust(domain_w)} | /var/www/a"
     lines = result.output.splitlines()
-    assert lines[0] == expected_header
-    assert lines[1] == expected_sep
-    assert lines[2] == expected_row
+    assert lines[0] == ""
+    assert lines[1] == expected_header
+    assert lines[2] == expected_sep
+    assert lines[3] == expected_row
+    assert lines[4] == ""
     assert "->" not in result.output
-    assert len(lines) == 3
 
 
 def test_cli_list_sites_empty(monkeypatch) -> None:
