@@ -138,12 +138,17 @@ def test_cli_list_sites(monkeypatch) -> None:
     )
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["list-sites"])
-    expected_line = "a.com  ->  /var/www/a"
-    expected_frame = "-" * len(expected_line)
+    domain_w = max(len("DOMAIN"), len("a.com"))
+    path_w = max(len("PATH"), len("/var/www/a"))
+    expected_header = f"{'DOMAIN'.ljust(domain_w)} | {'PATH'.ljust(path_w)}"
+    expected_sep = f"{'-' * domain_w}-+-{'-' * path_w}"
+    expected_row = f"{'a.com'.ljust(domain_w)} | /var/www/a"
     lines = result.output.splitlines()
-    assert lines[1] == expected_frame
-    assert lines[-2] == expected_frame
-    assert expected_line in result.output
+    assert lines[0] == expected_header
+    assert lines[1] == expected_sep
+    assert lines[2] == expected_row
+    assert "->" not in result.output
+    assert len(lines) == 3
 
 
 def test_cli_list_sites_empty(monkeypatch) -> None:
