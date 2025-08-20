@@ -360,9 +360,13 @@ def format_site_choices(sites: Iterable[Tuple[str, str]]) -> List[dict]:
     header = f"{'DOMAIN'.ljust(domain_w)} | {'PATH'.ljust(path_w)}"
     sep = f"{'-' * domain_w}-+-{'-' * path_w}"
 
+    # ``InquirerPy`` 0.3+ requires each choice to define both ``name`` and
+    # ``value``.  The table header and separator are disabled entries and do not
+    # need meaningful values, but we still provide dummy placeholders to avoid
+    # crashes when the picker is rendered with ``InquirerPy``.
     choices: List[dict] = [
-        {"name": header, "disabled": True},
-        {"name": sep, "disabled": True},
+        {"name": header, "value": header, "disabled": True},
+        {"name": sep, "value": sep, "disabled": True},
     ]
 
     for d, p in sites:
