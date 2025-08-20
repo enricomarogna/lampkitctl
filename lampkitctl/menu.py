@@ -28,7 +28,7 @@ from .utils import (
     echo_info,
     echo_title,
     ask_confirm,
-    render_sites_list,
+    render_sites_table,
 )
 from .elevate import (
     build_sudo_cmd,
@@ -780,7 +780,7 @@ def _generate_ssl_flow(dry_run: bool) -> None:
 
 def _list_sites_flow() -> None:
     sites = list_installed_sites()
-    render_sites_list([(s["domain"], s["doc_root"]) for s in sites])
+    render_sites_table([(s["domain"], s["doc_root"]) for s in sites])
 
 
 # ---------------------------------------------------------------------------

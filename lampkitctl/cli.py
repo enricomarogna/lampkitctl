@@ -345,7 +345,7 @@ def list_sites() -> None:
         click.echo("Apache not installed. No sites to list.")
         return
     sites = system_ops.list_sites()
-    utils.render_sites_list([(s["domain"], s["doc_root"]) for s in sites])
+    utils.render_sites_table([(s["domain"], s["doc_root"]) for s in sites])
 
 
 @cli.command("wp-permissions")

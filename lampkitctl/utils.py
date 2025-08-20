@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple
 
 import click
 from shutil import get_terminal_size
@@ -301,6 +301,34 @@ def _format_site_line(domain: str, docroot: str) -> str:
 
 
 _DEF_EMPTY = "No sites found"
+
+
+def render_sites_table(sites: Iterable[Tuple[str, str]]) -> None:
+    """Render discovered sites as a two-column table: DOMAIN | PATH.
+
+    * ``sites`` is an iterable of ``(domain, path)`` tuples.
+    * Handles empty state with a red message.
+    * Column widths adapt to longest domain/path; no wrapping.
+    """
+
+    sites = list(sites)
+    if not sites:
+        click.secho(_DEF_EMPTY, fg="red")
+        return
+
+    domain_w = max(len("DOMAIN"), max(len(d) for d, _ in sites))
+    path_w = max(len("PATH"), max(len(p) for _, p in sites))
+
+    header = f"{'DOMAIN'.ljust(domain_w)} | {'PATH'.ljust(path_w)}"
+    sep = f"{'-' * domain_w}-+-{'-' * path_w}"
+
+    click.secho(header, fg="cyan", bold=True)
+    click.secho(sep, dim=True)
+
+    for domain, path in sites:
+        click.secho(domain.ljust(domain_w), fg="green", nl=False)
+        click.secho(" | ", dim=True, nl=False)
+        click.echo(path)
 
 
 def render_sites_list(sites: list[tuple[str, str]], *, color: bool = True) -> None:

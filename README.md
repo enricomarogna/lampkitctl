@@ -68,7 +68,7 @@ It targets both advanced users—through granular commands—and less experience
   Issues and configures certificates for configured domains.
 
 * ✅ **List & remove sites**
-  Lists configured sites in a framed, colored output; controlled uninstall (with confirmations and optional DB removal) that never triggers LAMP installation. Shows a red `No sites found` when no vhosts are present.
+  Lists configured sites in a colorized table; controlled uninstall (with confirmations and optional DB removal) that never triggers LAMP installation. Shows a red `No sites found` when no vhosts are present.
 
 * ✅ **Dry-run mode**
   Simulates actions **without changing** the system.
@@ -342,8 +342,12 @@ sudo lampkitctl wp-permissions /var/www/example.local
 
 ### List configured sites
 
-```bash
-sudo lampkitctl list-sites
+```text
+$ lampkitctl sites list
+DOMAIN                           | PATH
+---------------------------------+----------------------------------------------
+test2.com                        | /var/www/test2.com
+test3-supercalifragilistich...  | /var/www/test3-supercalifragilistichespiralidoso.com
 ```
 
 ### Remove a site
