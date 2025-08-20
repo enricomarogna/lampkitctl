@@ -425,7 +425,6 @@ def _choose_site() -> apache_vhosts.VHost | str | None:
     if not sites:
         secho("No sites found", fg="red")
         return None
-    render_sites_table(sites, pad_top=1, pad_bottom=1)
     choices = format_site_choices(sites)
     choices.append({"name": "Custom...", "value": "__custom__"})
     if inquirer:  # pragma: no cover
@@ -433,11 +432,16 @@ def _choose_site() -> apache_vhosts.VHost | str | None:
     else:
         while True:
             print("Select a site")
-            for idx, choice in enumerate(choices, 1):
-                print(f"{idx}) {choice['name']}")
+            numbered: list[dict] = []
+            for choice in choices:
+                if choice.get("disabled"):
+                    print(choice["name"])
+                else:
+                    numbered.append(choice)
+                    print(f"{len(numbered)}) {choice['name']}")
             resp = input("Select: ").strip()
-            if resp.isdigit() and 1 <= int(resp) <= len(choices):
-                sel = choices[int(resp) - 1]["value"]
+            if resp.isdigit() and 1 <= int(resp) <= len(numbered):
+                sel = numbered[int(resp) - 1]["value"]
                 break
     if sel == "__custom__":
         return "custom"
