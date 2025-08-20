@@ -21,7 +21,7 @@ def test_run_menu_routing(monkeypatch):
 
     called = {}
 
-    def fake_install_lamp(db_engine: str, wait_apt_lock: int, dry_run: bool):
+    def fake_install_lamp(db_engine: str, wait_apt_lock: int, dry_run: bool, **kwargs):
         called["engine"] = db_engine
         called["wait"] = wait_apt_lock
         return "mysql"

@@ -43,7 +43,7 @@ def test_install_lamp_preflight_pass(monkeypatch):
     monkeypatch.setattr(cli.preflight_locks, "wait_for_lock", lambda *a, **k: preflight_locks.LockInfo(False))
     monkeypatch.setattr(
         cli.system_ops,
-        "install_lamp_stack",
+        "install_lamp_stack_full",
         lambda pref, dry_run=False: packages.Engine("mysql", "mysql-server", "mysql-client", "mysql"),
     )
     runner = CliRunner()

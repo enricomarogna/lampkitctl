@@ -21,7 +21,7 @@ def test_update_before_detection(monkeypatch):
     monkeypatch.setattr(system_ops, "run_command", fake_run)
     monkeypatch.setattr(system_ops.preflight_locks, "detect_lock", lambda: preflight_locks.LockInfo(False))
 
-    system_ops.install_lamp_stack(None, dry_run=True)
+    system_ops.install_lamp_stack_full(None, dry_run=True)
 
     assert calls[0:2] == ["update", "detect"]
     install_cmd = calls[2]

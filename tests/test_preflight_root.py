@@ -23,7 +23,7 @@ def test_install_lamp_requires_root(monkeypatch):
     )
     calls = []
     monkeypatch.setattr(
-        cli.system_ops, "install_lamp_stack", lambda *a, **k: calls.append(a)
+        cli.system_ops, "install_lamp_stack_full", lambda *a, **k: calls.append(a)
     )
     runner = CliRunner()
     result = runner.invoke(cli.cli, ["install-lamp"])

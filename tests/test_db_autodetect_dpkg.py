@@ -12,12 +12,12 @@ class Proc:
 
 def test_detect_mysql_via_dpkg(monkeypatch):
     def fake_run(cmd, capture_output=True, text=True):
-        if cmd[:2] == ["dpkg", "-s"]:
+        if cmd[:2] == ["apt-cache", "policy"]:
             pkg = cmd[2]
             if pkg == "mysql-server":
-                return Proc("Status: install ok installed\n")
+                return Proc("Installed: 8.0\n")
             if pkg == "mariadb-server":
-                return Proc("Status: deinstall ok not-installed\n", returncode=1)
+                return Proc("Installed: (none)\n")
         raise AssertionError(f"unexpected command: {cmd}")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -26,12 +26,12 @@ def test_detect_mysql_via_dpkg(monkeypatch):
 
 def test_detect_mariadb_via_dpkg(monkeypatch):
     def fake_run(cmd, capture_output=True, text=True):
-        if cmd[:2] == ["dpkg", "-s"]:
+        if cmd[:2] == ["apt-cache", "policy"]:
             pkg = cmd[2]
             if pkg == "mysql-server":
-                return Proc("Status: deinstall ok not-installed\n", returncode=1)
+                return Proc("Installed: (none)\n")
             if pkg == "mariadb-server":
-                return Proc("Status: install ok installed\n")
+                return Proc("Installed: 10.5\n")
         raise AssertionError(f"unexpected command: {cmd}")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
@@ -40,8 +40,8 @@ def test_detect_mariadb_via_dpkg(monkeypatch):
 
 def test_detect_none_via_dpkg(monkeypatch):
     def fake_run(cmd, capture_output=True, text=True):
-        if cmd[:2] == ["dpkg", "-s"]:
-            return Proc("Status: deinstall ok not-installed\n", returncode=1)
+        if cmd[:2] == ["apt-cache", "policy"]:
+            return Proc("Installed: (none)\n")
         raise FileNotFoundError
 
     monkeypatch.setattr(subprocess, "run", fake_run)

@@ -17,10 +17,10 @@ def test_menu_install_missing_install(monkeypatch):
     monkeypatch.setattr(menu.system_ops, "compute_lamp_packages", lambda e: ["mysql-server", "apache2"])
     monkeypatch.setattr(menu.system_ops, "run_command", lambda cmd, dry_run: calls.append(cmd))
 
-    def fake_install_or_update(engine, dry_run=False, refresh=False):
-        calls.append(["apt-get", "install", "-y", "--no-install-recommends", "mysql-server", "apache2"])
+    def fake_install(pkgs, dry_run=False):
+        calls.append(["apt-get", "install", "-y", "--no-install-recommends", *pkgs])
 
-    monkeypatch.setattr(menu.system_ops, "install_or_update_lamp", fake_install_or_update)
+    monkeypatch.setattr(menu.system_ops, "install_lamp_stack", fake_install)
     monkeypatch.setattr(menu, "_confirm", lambda msg, default=True: True)
 
     menu.install_lamp(db_engine="mysql", wait_apt_lock=0, dry_run=False)

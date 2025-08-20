@@ -103,6 +103,39 @@ def ensure_db_ready(retries: int = 5, delay: float = 1.0, dry_run: bool = False)
 
 
 def install_lamp_stack(
+    pkgs: list[str], *, dry_run: bool = False
+) -> None:
+    """Install missing LAMP packages."""
+
+    logger.info(
+        "install_lamp_stack", extra={"packages": pkgs, "dry_run": dry_run}
+    )
+    run_command(
+        ["apt-get", "install", "-y", "--no-install-recommends", *pkgs], dry_run
+    )
+
+
+def update_lamp_stack(upgradable: list[str], *, dry_run: bool = False) -> None:
+    """Upgrade existing LAMP packages."""
+
+    logger.info(
+        "update_lamp_stack", extra={"upgradable": upgradable, "dry_run": dry_run}
+    )
+    run_command(
+        ["apt-get", "install", "-y", "--only-upgrade", *upgradable], dry_run
+    )
+
+
+def reinstall_lamp_stack(pkgs: list[str], *, dry_run: bool = False) -> None:
+    """Reinstall LAMP packages."""
+
+    logger.info(
+        "reinstall_lamp_stack", extra={"packages": pkgs, "dry_run": dry_run}
+    )
+    run_command(["apt-get", "install", "-y", "--reinstall", *pkgs], dry_run)
+
+
+def install_lamp_stack_full(
     preferred_engine: str | None,
     with_php: bool = True,
     with_certbot: bool = True,
@@ -128,7 +161,7 @@ def install_lamp_stack(
     if with_certbot:
         pkgs += CERTBOT_PKGS
     logger.info(
-        "install_lamp_stack",
+        "install_lamp_stack_full",
         extra={"packages": pkgs, "db_engine": eng.name, "dry_run": dry_run},
     )
     install_cmd = ["apt-get", "install", "-y"]
