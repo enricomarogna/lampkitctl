@@ -16,7 +16,8 @@ def test_menu_install_uptodate_noop(monkeypatch):
 
     monkeypatch.setattr(menu.system_ops, "compute_lamp_packages", lambda e: ["mysql-server", "apache2"])
     monkeypatch.setattr(menu.system_ops, "run_command", lambda cmd, dry_run: calls.append(cmd))
-    monkeypatch.setattr(menu.system_ops, "install_or_update_lamp", lambda *a, **k: calls.append(["unexpected"]))
+    monkeypatch.setattr(menu.system_ops, "install_lamp_stack", lambda *a, **k: calls.append(["unexpected"]))
+    monkeypatch.setattr(menu.system_ops, "update_lamp_stack", lambda *a, **k: calls.append(["unexpected"]))
     monkeypatch.setattr(menu, "_confirm", lambda msg, default=False: False)
 
     menu.install_lamp(db_engine="mysql", wait_apt_lock=0, dry_run=False)

@@ -14,7 +14,7 @@ def _setup_common(monkeypatch, calls):
         cli.preflight_locks, "detect_lock", lambda: preflight_locks.LockInfo(False)
     )
     fake_engine = packages.Engine("mysql", "mysql-server", "mysql-client", "mysql")
-    monkeypatch.setattr(system_ops, "install_lamp_stack", lambda *a, **k: fake_engine)
+    monkeypatch.setattr(system_ops, "install_lamp_stack_full", lambda *a, **k: fake_engine)
     monkeypatch.setattr(system_ops, "ensure_db_ready", lambda **k: True)
     monkeypatch.setattr(cli.utils, "setup_logging", lambda *a, **k: None)
 

@@ -14,8 +14,8 @@ class Proc:
 
 def _fake_run_factory(output: str):
     def fake_run(cmd, capture_output=True, text=True):
-        if cmd[:2] == ["dpkg", "-s"]:
-            return Proc("Status: deinstall ok not-installed\n", returncode=1)
+        if cmd[:2] == ["apt-cache", "policy"]:
+            return Proc("Installed: (none)\n")
         if cmd[:2] == ["mysql", "--version"]:
             return Proc(output)
         raise AssertionError(f"unexpected command: {cmd}")

@@ -149,6 +149,9 @@ def install_lamp(
     db_engine: str = "auto",
     wait_apt_lock: int = 120,
     dry_run: bool = False,
+    *,
+    autodetected: bool = False,
+    show_engine: bool = True,
 ) -> str | None:
     """Install or update LAMP packages, returning the chosen DB engine."""
 
@@ -173,52 +176,105 @@ def install_lamp(
         mysql_status = detect_pkg_status([system_ops.DB_MAP["mysql"]])
         if mysql_status.uptodate or mysql_status.upgradable:
             engine = "mysql"
+            autodetected = True
         else:
             mariadb_status = detect_pkg_status([system_ops.DB_MAP["mariadb"]])
             if mariadb_status.uptodate or mariadb_status.upgradable:
                 engine = "mariadb"
+                autodetected = True
             else:
                 engine = system_ops.detect_db_engine("auto").name
+                autodetected = True if engine in ("mysql", "mariadb") else False
 
     pkgs = system_ops.compute_lamp_packages(engine)
     system_ops.run_command(["apt-get", "update"], dry_run)
     status = detect_pkg_status(pkgs)
 
+    secho("\nPackage status:", bold=True)
     secho(
-        "Missing: " + (", ".join(status.missing) if status.missing else "–"),
+        "  Missing    : " + (", ".join(status.missing) if status.missing else "–"),
         fg="red",
     )
     secho(
-        "Upgradable: " + (", ".join(status.upgradable) if status.upgradable else "–"),
+        "  Upgradable : " + (", ".join(status.upgradable) if status.upgradable else "–"),
         fg="yellow",
     )
     secho(
-        "Up-to-date: " + (", ".join(status.uptodate) if status.uptodate else "–"),
+        "  Up-to-date : " + (", ".join(status.uptodate) if status.uptodate else "–"),
         fg="green",
     )
+    if show_engine:
+        disp = {"mysql": "MySQL", "mariadb": "MariaDB"}.get(engine, engine)
+        msg = f"DB engine: {disp}" + (" (auto-detected)" if autodetected else "")
+        secho(msg, fg="cyan")
 
     if status.missing:
-        echo_info("Missing packages will be installed")
-        if not _confirm("Proceed with installation?", default=True):
-            return None
-        system_ops.install_or_update_lamp(engine, dry_run=dry_run, refresh=False)
-        return engine
+        mode = "install"
+        if _confirm("Install missing components now?", default=True):
+            system_ops.install_lamp_stack(pkgs, dry_run=dry_run)
+            logger.info(
+                "install_lamp_decision",
+                extra={
+                    "mode": mode,
+                    "missing": status.missing,
+                    "upgradable": status.upgradable,
+                    "uptodate": status.uptodate,
+                },
+            )
+            return engine
+        logger.info(
+            "install_lamp_decision",
+            extra={
+                "mode": "abort",
+                "missing": status.missing,
+                "upgradable": status.upgradable,
+                "uptodate": status.uptodate,
+            },
+        )
+        return None
 
     if status.upgradable:
+        mode = "update"
         if _confirm(
-            f"Updates available for {len(status.upgradable)} packages. Update now?",
+            f"Updates available for {len(status.upgradable)} components. Update now?",
             default=True,
         ):
-            system_ops.install_or_update_lamp(engine, dry_run=dry_run, refresh=False)
+            system_ops.update_lamp_stack(status.upgradable, dry_run=dry_run)
+            logger.info(
+                "install_lamp_decision",
+                extra={
+                    "mode": mode,
+                    "missing": status.missing,
+                    "upgradable": status.upgradable,
+                    "uptodate": status.uptodate,
+                },
+            )
             return engine
+        logger.info(
+            "install_lamp_decision",
+            extra={
+                "mode": "abort",
+                "missing": status.missing,
+                "upgradable": status.upgradable,
+                "uptodate": status.uptodate,
+            },
+        )
         return None
 
     echo_ok("All components up to date")
+    mode = "noop"
     if _confirm("Force reinstall anyway?", default=False):
-        system_ops.run_command(
-            ["apt-get", "install", "-y", "--reinstall", *pkgs], dry_run
-        )
-        return engine
+        system_ops.reinstall_lamp_stack(pkgs, dry_run=dry_run)
+        mode = "reinstall"
+    logger.info(
+        "install_lamp_decision",
+        extra={
+            "mode": mode,
+            "missing": status.missing,
+            "upgradable": status.upgradable,
+            "uptodate": status.uptodate,
+        },
+    )
     return engine
 
 
@@ -750,17 +806,16 @@ def run_menu(dry_run: bool = False) -> None:
         choice = _select("Main > Choose an option", options)
         if choice == "Install LAMP server":
             engine_choice: str | None = None
+            autodetected_engine = False
             auto_eng = detect_installed_db()
             if auto_eng:
-                pkgs = system_ops.compute_lamp_packages(auto_eng)
-                status = detect_pkg_status(pkgs)
-                if not status.missing:
-                    display = {"mysql": "MySQL", "mariadb": "MariaDB"}[auto_eng]
-                    secho(
-                        f"DB engine: {display} (auto-detected)",
-                        fg="cyan",
-                    )
-                    engine_choice = auto_eng
+                display = {"mysql": "MySQL", "mariadb": "MariaDB"}[auto_eng]
+                secho(
+                    f"DB engine: {display} (auto-detected)",
+                    fg="cyan",
+                )
+                engine_choice = auto_eng
+                autodetected_engine = True
             if engine_choice is None:
                 engine_choice = _select(
                     "Main > Install LAMP server > Database engine",
@@ -784,6 +839,8 @@ def run_menu(dry_run: bool = False) -> None:
                 db_engine=engine_choice,
                 wait_apt_lock=120 if wait_choice else 0,
                 dry_run=dry_run,
+                autodetected=autodetected_engine,
+                show_engine=not autodetected_engine,
             )
             if eng and set_root:
                 pwd = ensure_db_root_password()

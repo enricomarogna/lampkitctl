@@ -12,7 +12,8 @@ def test_menu_respects_db_engine_override(monkeypatch):
     monkeypatch.setattr(menu.system_ops, "detect_db_engine", fail_detect)
     monkeypatch.setattr(menu.system_ops, "compute_lamp_packages", lambda e: [e])
     monkeypatch.setattr(menu.system_ops, "run_command", lambda *a, **k: None)
-    monkeypatch.setattr(menu.system_ops, "install_or_update_lamp", lambda *a, **k: None)
+    monkeypatch.setattr(menu.system_ops, "install_lamp_stack", lambda *a, **k: None)
+    monkeypatch.setattr(menu.system_ops, "update_lamp_stack", lambda *a, **k: None)
 
     monkeypatch.setattr(menu, "detect_pkg_status", lambda pkgs: PkgStatus([], [], pkgs))
     monkeypatch.setattr(menu.preflight, "ensure_or_fail", lambda *a, **k: None)

@@ -141,7 +141,7 @@ def install_lamp(
     preflight.ensure_or_fail(
         checks, interactive=not non_interactive, dry_run=dry_run
     )
-    eng = system_ops.install_lamp_stack(
+    eng = system_ops.install_lamp_stack_full(
         None if db_engine == "auto" else db_engine,
         dry_run=dry_run,
     )
