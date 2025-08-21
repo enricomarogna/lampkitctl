@@ -29,7 +29,6 @@ from .utils import (
     echo_title,
     ask_confirm,
     render_sites_table,
-    format_site_choices,
 )
 from .elevate import (
     build_sudo_cmd,
@@ -421,31 +420,29 @@ def _confirm(message: str, default: bool = False) -> bool:
 
 def _choose_site() -> apache_vhosts.VHost | str | None:
     vhosts = apache_vhosts.list_vhosts()
-    sites = [(v.domain, v.docroot or "") for v in vhosts]
-    if not sites:
+    if not vhosts:
         secho("No sites found", fg="red")
         return None
-    choices = format_site_choices(sites)
+    choices: list[dict[str, object]] = []
+    mapping: dict[tuple[str, str], apache_vhosts.VHost] = {}
+    for v in vhosts:
+        key = (v.domain, v.docroot or "")
+        mapping[key] = v
+        choices.append({"name": f"{v.domain} | {v.docroot or ''}", "value": key})
     choices.append({"name": "Custom...", "value": "__custom__"})
     if inquirer:  # pragma: no cover
         sel = inquirer.select(message="Select a site", choices=choices).execute()
     else:
         while True:
             print("Select a site")
-            numbered: list[dict] = []
-            for choice in choices:
-                if choice.get("disabled"):
-                    print(choice["name"])
-                else:
-                    numbered.append(choice)
-                    print(f"{len(numbered)}) {choice['name']}")
+            for idx, choice in enumerate(choices, 1):
+                print(f"{idx}) {choice['name']}")
             resp = input("Select: ").strip()
-            if resp.isdigit() and 1 <= int(resp) <= len(numbered):
-                sel = numbered[int(resp) - 1]["value"]
+            if resp.isdigit() and 1 <= int(resp) <= len(choices):
+                sel = choices[int(resp) - 1]["value"]
                 break
     if sel == "__custom__":
         return "custom"
-    mapping = {(v.domain, v.docroot or ""): v for v in vhosts}
     return mapping.get(sel)
 
 
