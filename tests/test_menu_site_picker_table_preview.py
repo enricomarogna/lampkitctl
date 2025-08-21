@@ -5,7 +5,7 @@ def make_vhost(domain, docroot, ssl=False):
     return apache_vhosts.VHost(domain, docroot, f"/etc/apache2/sites-available/{domain}.conf", ssl)
 
 
-def test_menu_site_picker_table_inline(monkeypatch, capsys):
+def test_menu_site_picker_simple_list(monkeypatch, capsys):
     vhosts = [make_vhost("a.com", "/var/www/a"), make_vhost("b.net", "/var/www/b")]
     monkeypatch.setattr(menu.apache_vhosts, "list_vhosts", lambda: vhosts)
     monkeypatch.setattr(menu, "inquirer", None)
@@ -15,19 +15,34 @@ def test_menu_site_picker_table_inline(monkeypatch, capsys):
     sel = menu._choose_site()
     out = capsys.readouterr().out
 
-    domain_w = max(len("DOMAIN"), max(len(v.domain) for v in vhosts))
-    path_w = max(len("PATH"), max(len(v.docroot) for v in vhosts))
-    header = f"{'DOMAIN'.ljust(domain_w)} | {'PATH'.ljust(path_w)}"
-    sep = f"{'-' * domain_w}-+-{'-' * path_w}"
-
     lines = out.splitlines()
     assert lines[0] == "Select a site"
-    assert lines[1] == header
-    assert lines[2] == sep
-
-    name1 = f"{vhosts[0].domain.ljust(domain_w)} | {vhosts[0].docroot.ljust(path_w)}"
-    name2 = f"{vhosts[1].domain.ljust(domain_w)} | {vhosts[1].docroot.ljust(path_w)}"
-    assert lines[3] == f"1) {name1}"
-    assert lines[4] == f"2) {name2}"
-    assert lines[5] == "3) Custom..."
+    assert lines[1] == "1) a.com | /var/www/a"
+    assert lines[2] == "2) b.net | /var/www/b"
+    assert lines[3] == "3) Custom..."
     assert sel == vhosts[0]
+
+
+def test_menu_site_picker_inquirer_choices(monkeypatch):
+    vhosts = [make_vhost("a.com", "/var/www/a")]
+    monkeypatch.setattr(menu.apache_vhosts, "list_vhosts", lambda: vhosts)
+    captured: dict[str, list] = {}
+
+    class DummySelect:
+        def __init__(self, *, choices=None, message=None):
+            captured["choices"] = choices
+
+        def execute(self):
+            return ("a.com", "/var/www/a")
+
+    class DummyInquirer:
+        def select(self, **kwargs):
+            return DummySelect(**kwargs)
+
+    monkeypatch.setattr(menu, "inquirer", DummyInquirer())
+    sel = menu._choose_site()
+    assert sel == vhosts[0]
+    choices = captured["choices"]
+    assert len(choices) == 2
+    assert choices[0]["name"] == "a.com | /var/www/a"
+    assert choices[1]["name"] == "Custom..."
