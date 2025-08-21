@@ -586,7 +586,7 @@ No. It’s only needed if you want to issue/manage SSL certificates via `ssl iss
 
 ## License
 
-MIT.
+[MIT](https://github.com/enricomarogna/lampkitctl?tab=MIT-1-ov-file)
 
 ---
 
